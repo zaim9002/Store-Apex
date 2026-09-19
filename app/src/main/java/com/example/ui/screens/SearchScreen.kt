@@ -73,6 +73,7 @@ fun SearchScreen(
     val categoryFilter by viewModel.searchCategoryFilter.collectAsState()
     val sortOrder by viewModel.searchSortOrder.collectAsState()
     val results by viewModel.searchResults.collectAsState()
+    val downloads by viewModel.downloads.collectAsState()
     val focusManager = LocalFocusManager.current
 
     Column(
@@ -253,16 +254,18 @@ fun SearchScreen(
             }
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 95.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(results) { app ->
+                items(results, key = { it.id }) { app ->
+                    val downloadItem = downloads.find { it.appId == app.id }
                     AppRankedCard(
                         rank = results.indexOf(app) + 1,
                         app = app,
                         onClick = { viewModel.openAppDetail(app) },
-                        onDownloadClick = { viewModel.startDownload(app) }
+                        onDownloadClick = { viewModel.startDownload(app) },
+                        downloadState = downloadItem
                     )
                 }
             }

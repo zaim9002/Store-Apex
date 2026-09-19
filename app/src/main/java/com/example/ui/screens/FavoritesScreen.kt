@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -22,7 +21,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,6 +37,7 @@ fun FavoritesScreen(
     modifier: Modifier = Modifier
 ) {
     val favorites by viewModel.favorites.collectAsState()
+    val downloads by viewModel.downloads.collectAsState()
 
     Column(
         modifier = modifier
@@ -91,16 +90,18 @@ fun FavoritesScreen(
             }
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 95.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(favorites) { app ->
+                items(favorites, key = { it.id }) { app ->
+                    val downloadItem = downloads.find { it.appId == app.id }
                     AppRankedCard(
                         rank = favorites.indexOf(app) + 1,
                         app = app,
                         onClick = { viewModel.openAppDetail(app) },
-                        onDownloadClick = { viewModel.startDownload(app) }
+                        onDownloadClick = { viewModel.startDownload(app) },
+                        downloadState = downloadItem
                     )
                 }
             }

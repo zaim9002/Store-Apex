@@ -2,10 +2,12 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
@@ -20,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,6 +33,7 @@ import com.example.ui.ApexStoreViewModel
 import com.example.ui.components.AppGridCard
 import com.example.ui.components.CategoryFilterChip
 import com.example.ui.theme.ApexBackground
+import com.example.ui.theme.ApexTextMuted
 import com.example.ui.theme.ApexTextPrimary
 import com.example.ui.theme.ApexTextSecondary
 
@@ -39,6 +43,7 @@ fun GamesScreen(
     modifier: Modifier = Modifier
 ) {
     val games by viewModel.publishedGames.collectAsState()
+    val downloads by viewModel.downloads.collectAsState()
     var selectedCategoryId by remember { mutableStateOf<String?>(null) }
 
     val filteredGames = remember(games, selectedCategoryId) {
@@ -92,24 +97,41 @@ fun GamesScreen(
         Spacer(modifier = Modifier.height(14.dp))
 
         // Grid of Games
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 160.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            items(filteredGames) { game ->
-                AppGridCard(
-                    app = game,
-                    onClick = { viewModel.openAppDetail(game) },
-                    onDownloadClick = {
-                        viewModel.startDownload(
-                            game,
-                            if (game.xapkUrl.isNotBlank()) "XAPK" else "APK"
-                        )
-                    }
+        if (filteredGames.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "لا توجد ألعاب في هذا التصنيف حالياً",
+                    color = ApexTextMuted,
+                    fontSize = 14.sp
                 )
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 165.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 95.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(filteredGames, key = { it.id }) { game ->
+                    val downloadItem = downloads.find { it.appId == game.id }
+                    AppGridCard(
+                        app = game,
+                        onClick = { viewModel.openAppDetail(game) },
+                        onDownloadClick = {
+                            viewModel.startDownload(
+                                game,
+                                if (game.xapkUrl.isNotBlank()) "XAPK" else "APK"
+                            )
+                        },
+                        downloadState = downloadItem
+                    )
+                }
             }
         }
     }

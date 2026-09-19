@@ -22,10 +22,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
@@ -33,17 +33,17 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,14 +55,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.data.model.AppEntity
+import com.example.data.model.DownloadStatus
 import com.example.ui.ApexStoreViewModel
 import com.example.ui.theme.ApexAmber
 import com.example.ui.theme.ApexBackground
@@ -86,8 +89,13 @@ fun AppDetailScreen(
     modifier: Modifier = Modifier
 ) {
     val favorites by viewModel.favorites.collectAsState()
+    val downloads by viewModel.downloads.collectAsState()
     val isFavorite = favorites.any { it.id == app.id }
     var isDescriptionExpanded by remember { mutableStateOf(false) }
+
+    val downloadItem = downloads.find { it.appId == app.id }
+    val isDownloading = downloadItem?.status == DownloadStatus.DOWNLOADING.name
+    val isCompleted = downloadItem?.status == DownloadStatus.COMPLETED.name
 
     val screenshotList = remember(app.screenshots) {
         if (app.screenshots.isBlank()) {
@@ -104,7 +112,7 @@ fun AppDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(app.name, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 16.sp) },
+                title = { Text(app.name, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 16.sp, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick, modifier = Modifier.testTag("detail_back_button")) {
                         Icon(
@@ -133,8 +141,10 @@ fun AppDetailScreen(
             // Persistent Bottom Download Bar
             Surface(
                 color = ApexSurface,
-                tonalElevation = 8.dp,
-                modifier = Modifier.fillMaxWidth()
+                tonalElevation = 10.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(width = 1.dp, color = ApexBorder.copy(alpha = 0.4f))
             ) {
                 Row(
                     modifier = Modifier
@@ -148,23 +158,29 @@ fun AppDetailScreen(
                             onClick = { viewModel.startDownload(app, "APK") },
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = ApexTertiary,
-                                contentColor = Color.White
+                                containerColor = if (isCompleted) ApexTertiary else ApexPrimary,
+                                contentColor = ApexBackground
                             ),
                             modifier = Modifier
                                 .weight(1f)
                                 .height(50.dp)
                                 .testTag("detail_download_apk_button")
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Download,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(text = "تحميل APK", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                Text(text = app.size, fontSize = 10.sp, color = Color.White.copy(alpha = 0.85f))
+                            if (isDownloading) {
+                                CircularProgressIndicator(strokeWidth = 2.5.dp, color = ApexBackground, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = "جارٍ التحميل...", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            } else if (isCompleted) {
+                                Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(text = "تم التثبيت ✓", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
+                            } else {
+                                Icon(imageVector = Icons.Default.Download, contentDescription = null, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(text = "تحميل APK ⬇", fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                                    Text(text = app.size, fontSize = 10.sp, color = ApexBackground.copy(alpha = 0.8f))
+                                }
                             }
                         }
                     }
@@ -183,15 +199,17 @@ fun AppDetailScreen(
                                 .height(50.dp)
                                 .testTag("detail_download_xapk_button")
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Download,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(text = "تحميل XAPK", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                Text(text = app.size, fontSize = 10.sp, color = Color.White.copy(alpha = 0.85f))
+                            if (isDownloading) {
+                                CircularProgressIndicator(strokeWidth = 2.5.dp, color = Color.White, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = "جارٍ التحميل...", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            } else {
+                                Icon(imageVector = Icons.Default.Download, contentDescription = null, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(text = "تحميل XAPK ⬇", fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                                    Text(text = app.size, fontSize = 10.sp, color = Color.White.copy(alpha = 0.85f))
+                                }
                             }
                         }
                     }
@@ -292,7 +310,7 @@ fun AppDetailScreen(
                 ) {
                     SpecColumnItem(
                         label = "التقييم",
-                        value = "${app.rating} ★",
+                        value = "${String.format("%.1f", app.rating)} ★",
                         valueColor = ApexAmber
                     )
                     SpecDivider()
@@ -382,7 +400,7 @@ fun AppDetailScreen(
                 }
             }
 
-            // Technical Specifications Table
+            // Technical Specifications Table with LTR protection for tech strings
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Card(
@@ -402,11 +420,11 @@ fun AppDetailScreen(
                         )
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        DetailRow(label = "الإصدار الحالي", value = app.version)
-                        DetailRow(label = "حزمة التطبيق (Package Name)", value = app.packageName)
-                        DetailRow(label = "إصدار أندرويد المطلوب", value = app.androidVersion)
+                        DetailRow(label = "الإصدار الحالي", value = app.version, isLtr = true)
+                        DetailRow(label = "حزمة التطبيق (Package Name)", value = app.packageName, isLtr = true)
+                        DetailRow(label = "إصدار أندرويد المطلوب", value = app.androidVersion, isLtr = true)
                         DetailRow(label = "المطور", value = app.developer)
-                        DetailRow(label = "نوع الملف المتوفر", value = if (app.xapkUrl.isNotBlank()) "APK + XAPK (مع بيانات OBB)" else "APK قياسي")
+                        DetailRow(label = "نوع الملف المتوفر", value = if (app.xapkUrl.isNotBlank()) "APK + XAPK (مع OBB)" else "APK قياسي")
                         DetailRow(label = "التصنيف", value = app.category)
                     }
                 }
@@ -418,7 +436,9 @@ fun AppDetailScreen(
 @Composable
 private fun SpecColumnItem(label: String, value: String, valueColor: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = value, color = valueColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            Text(text = value, color = valueColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        }
         Spacer(modifier = Modifier.height(2.dp))
         Text(text = label, color = ApexTextMuted, fontSize = 10.sp)
     }
@@ -435,7 +455,7 @@ private fun SpecDivider() {
 }
 
 @Composable
-private fun DetailRow(label: String, value: String) {
+private fun DetailRow(label: String, value: String, isLtr: Boolean = false) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -444,13 +464,26 @@ private fun DetailRow(label: String, value: String) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(text = label, color = ApexTextMuted, fontSize = 12.sp)
-        Text(
-            text = value,
-            color = ApexTextPrimary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        if (isLtr) {
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                Text(
+                    text = value,
+                    color = ApexTextPrimary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        } else {
+            Text(
+                text = value,
+                color = ApexTextPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -83,20 +84,26 @@ fun SplashScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "APEX",
-                    color = ApexPrimary,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 2.sp
-                )
-                Text(
-                    text = " STORE",
-                    color = ApexTextPrimary,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold
-                )
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "APEX",
+                        color = ApexPrimary,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 2.sp
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "STORE",
+                        color = ApexTextPrimary,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))

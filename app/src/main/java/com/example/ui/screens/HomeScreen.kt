@@ -21,9 +21,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -32,6 +33,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -41,8 +43,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -75,14 +80,47 @@ fun HomeScreen(
     val latestApps by viewModel.publishedApps.collectAsState()
     val latestGames by viewModel.publishedGames.collectAsState()
     val mostDownloaded by viewModel.mostDownloaded.collectAsState()
+    val downloads by viewModel.downloads.collectAsState()
 
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(ApexBackground),
-        contentPadding = PaddingValues(bottom = 80.dp)
+        contentPadding = PaddingValues(bottom = 90.dp)
     ) {
-        // Hero Featured Banner
+        // 1. Quick Search Bar
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(ApexSurfaceCard)
+                    .border(1.dp, ApexBorder.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                    .clickable { onNavigateTab(StoreNavigationTab.SEARCH) }
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "بحث",
+                        tint = ApexPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "ابحث عن التطبيقات، الألعاب، وحزم APK / XAPK...",
+                        color = ApexTextMuted,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+        }
+
+        // 2. Hero Featured Banner (Highlighted item)
         item {
             HeroBannerSection(
                 featuredApp = featuredApps.firstOrNull(),
@@ -91,7 +129,7 @@ fun HomeScreen(
             )
         }
 
-        // Section: Featured Apps (التطبيقات المميزة)
+        // 3. Section: Featured Apps (التطبيقات المميزة)
         item {
             SectionHeader(
                 title = "التطبيقات المميزة",
@@ -103,17 +141,19 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(featuredApps.filter { it.type == "APP" }) { app ->
+                    val downloadItem = downloads.find { it.appId == app.id }
                     AppGridCard(
                         app = app,
                         onClick = { viewModel.openAppDetail(app) },
                         onDownloadClick = { viewModel.startDownload(app) },
-                        modifier = Modifier.width(170.dp)
+                        downloadState = downloadItem,
+                        modifier = Modifier.width(185.dp)
                     )
                 }
             }
         }
 
-        // Section: Featured Games (الألعاب المميزة)
+        // 4. Section: Featured Games (الألعاب المميزة)
         item {
             Spacer(modifier = Modifier.height(20.dp))
             SectionHeader(
@@ -126,17 +166,69 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(featuredApps.filter { it.type == "GAME" }) { game ->
+                    val downloadItem = downloads.find { it.appId == game.id }
                     AppGridCard(
                         app = game,
                         onClick = { viewModel.openAppDetail(game) },
                         onDownloadClick = { viewModel.startDownload(game, if (game.xapkUrl.isNotBlank()) "XAPK" else "APK") },
-                        modifier = Modifier.width(170.dp)
+                        downloadState = downloadItem,
+                        modifier = Modifier.width(185.dp)
                     )
                 }
             }
         }
 
-        // Section: Most Downloaded Top Charts (الأكثر تحميلاً)
+        // 5. Section: Latest Apps (أحدث التطبيقات المضافة)
+        item {
+            Spacer(modifier = Modifier.height(22.dp))
+            SectionHeader(
+                title = "أحدث التطبيقات",
+                actionTitle = "عرض الكل",
+                onActionClick = { onNavigateTab(StoreNavigationTab.APPS) }
+            )
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(latestApps.take(8)) { app ->
+                    val downloadItem = downloads.find { it.appId == app.id }
+                    AppGridCard(
+                        app = app,
+                        onClick = { viewModel.openAppDetail(app) },
+                        onDownloadClick = { viewModel.startDownload(app) },
+                        downloadState = downloadItem,
+                        modifier = Modifier.width(185.dp)
+                    )
+                }
+            }
+        }
+
+        // 6. Section: Latest Games (أحدث الألعاب المضافة)
+        item {
+            Spacer(modifier = Modifier.height(22.dp))
+            SectionHeader(
+                title = "أحدث الألعاب",
+                actionTitle = "عرض الكل",
+                onActionClick = { onNavigateTab(StoreNavigationTab.GAMES) }
+            )
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(latestGames.take(8)) { game ->
+                    val downloadItem = downloads.find { it.appId == game.id }
+                    AppGridCard(
+                        app = game,
+                        onClick = { viewModel.openAppDetail(game) },
+                        onDownloadClick = { viewModel.startDownload(game) },
+                        downloadState = downloadItem,
+                        modifier = Modifier.width(185.dp)
+                    )
+                }
+            }
+        }
+
+        // 7. Section: Most Downloaded Top Charts (الأكثر تحميلاً)
         item {
             Spacer(modifier = Modifier.height(24.dp))
             SectionHeader(
@@ -147,71 +239,27 @@ fun HomeScreen(
         }
 
         itemsIndexed(mostDownloaded.take(5)) { index, app ->
+            val downloadItem = downloads.find { it.appId == app.id }
             Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                 AppRankedCard(
                     rank = index + 1,
                     app = app,
                     onClick = { viewModel.openAppDetail(app) },
-                    onDownloadClick = { viewModel.startDownload(app) }
+                    onDownloadClick = { viewModel.startDownload(app) },
+                    downloadState = downloadItem
                 )
             }
         }
 
-        // Section: Latest Apps (آخر التطبيقات المضافة)
+        // 8. Section: Categories Overview
         item {
             Spacer(modifier = Modifier.height(24.dp))
-            SectionHeader(
-                title = "آخر التطبيقات",
-                actionTitle = "المزيد",
-                onActionClick = { onNavigateTab(StoreNavigationTab.APPS) }
-            )
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(latestApps.take(6)) { app ->
-                    AppGridCard(
-                        app = app,
-                        onClick = { viewModel.openAppDetail(app) },
-                        onDownloadClick = { viewModel.startDownload(app) },
-                        modifier = Modifier.width(160.dp)
-                    )
-                }
-            }
-        }
-
-        // Section: Latest Games (آخر الألعاب)
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
-            SectionHeader(
-                title = "آخر الألعاب",
-                actionTitle = "المزيد",
-                onActionClick = { onNavigateTab(StoreNavigationTab.GAMES) }
-            )
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(latestGames.take(6)) { game ->
-                    AppGridCard(
-                        app = game,
-                        onClick = { viewModel.openAppDetail(game) },
-                        onDownloadClick = { viewModel.startDownload(game) },
-                        modifier = Modifier.width(160.dp)
-                    )
-                }
-            }
-        }
-
-        // Section: Categories Overview
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
-            SectionHeader(title = "تصفح حسب التصنيف")
+            SectionHeader(title = "التصنيفات الرئيسية")
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(CategoryData.getAllCategories().take(10)) { cat ->
+                items(CategoryData.getAllCategories()) { cat ->
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
@@ -219,7 +267,7 @@ fun HomeScreen(
                             .border(1.dp, ApexBorder.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                             .clickable {
                                 viewModel.searchCategoryFilter.value = cat.id
-                                onNavigateTab(StoreNavigationTab.APPS)
+                                onNavigateTab(if (cat.type == com.example.data.model.AppType.APP) StoreNavigationTab.APPS else StoreNavigationTab.GAMES)
                             }
                             .padding(horizontal = 16.dp, vertical = 10.dp)
                     ) {
@@ -246,10 +294,10 @@ private fun HeroBannerSection(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp)
-            .height(200.dp)
+            .height(210.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(ApexSurfaceCard)
-            .border(1.dp, ApexPrimary.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+            .border(1.dp, ApexPrimary.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
             .clickable { featuredApp?.let { onOpenApp(it) } }
     ) {
         // Banner Image
@@ -304,7 +352,7 @@ private fun HeroBannerSection(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = featuredApp?.name ?: "APEX STORE - تطبيقات وألعاب أصلية",
+                text = featuredApp?.name ?: "APEX STORE - متجر التطبيقات والألعاب",
                 color = Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold,
@@ -313,14 +361,14 @@ private fun HeroBannerSection(
             )
 
             Text(
-                text = featuredApp?.shortDescription ?: "تحميل مباشر لملفات APK و XAPK بسرعة فائقة وبدون إعلانات مزعجة",
+                text = featuredApp?.shortDescription ?: "تحميل مباشر لملفات APK و XAPK بسرعة فائقة وبأعلى مستويات الأمان",
                 color = ApexTextSecondary,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button(
@@ -330,7 +378,7 @@ private fun HeroBannerSection(
                         containerColor = ApexPrimary,
                         contentColor = ApexBackground
                     ),
-                    modifier = Modifier.height(36.dp)
+                    modifier = Modifier.height(38.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Download,
@@ -338,7 +386,7 @@ private fun HeroBannerSection(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = "تحميل مباشر", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "تحميل مباشر ⬇", fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold)
                 }
 
                 Spacer(modifier = Modifier.width(10.dp))
@@ -347,10 +395,11 @@ private fun HeroBannerSection(
                     onClick = { featuredApp?.let { onOpenApp(it) } },
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = ApexSurfaceVariant.copy(alpha = 0.8f),
+                        containerColor = ApexSurfaceVariant.copy(alpha = 0.85f),
                         contentColor = ApexTextPrimary
                     ),
-                    modifier = Modifier.height(36.dp)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, ApexBorder.copy(alpha = 0.5f)),
+                    modifier = Modifier.height(38.dp)
                 ) {
                     Text(text = "التفاصيل", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 }
@@ -406,7 +455,7 @@ fun SectionHeader(
                 )
                 Spacer(modifier = Modifier.width(2.dp))
                 Icon(
-                    imageVector = Icons.Default.ArrowForward,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
                     tint = ApexPrimary,
                     modifier = Modifier.size(14.dp)
