@@ -22,6 +22,7 @@ data class UserEntity(
     val email: String,
     val role: String, // "SUPER_ADMIN", "ADMIN", "USER"
     val avatar: String = "",
+    val passwordHash: String = "", // Salted & hashed PBKDF-SHA256 password
     val status: String = AccountStatus.ACTIVE.name,
     val createdAt: Long = System.currentTimeMillis()
 )

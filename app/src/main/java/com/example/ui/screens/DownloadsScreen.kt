@@ -159,16 +159,7 @@ fun DownloadsScreen(
                         onRetry = { viewModel.retryDownload(download) },
                         onDelete = { viewModel.deleteDownload(download.id) },
                         onOpen = {
-                            // Launch installer or file intent
-                            val intent = Intent(Intent.ACTION_VIEW).apply {
-                                setDataAndType(Uri.parse("file://${download.appName}"), "application/vnd.android.package-archive")
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
-                            }
-                            try {
-                                context.startActivity(intent)
-                            } catch (_: Exception) {
-                                // Handled gracefully if file not local
-                            }
+                            com.example.data.util.PackageInstallerHelper.installPackage(context, download)
                         }
                     )
                 }

@@ -24,6 +24,7 @@ import com.example.ui.components.ApexTopBar
 import com.example.ui.screens.AccountScreen
 import com.example.ui.screens.AddEditAppScreen
 import com.example.ui.screens.AdminDashboardScreen
+import com.example.ui.screens.AdminLoginScreen
 import com.example.ui.screens.AppDetailScreen
 import com.example.ui.screens.AppsScreen
 import com.example.ui.screens.DownloadsScreen
@@ -99,8 +100,27 @@ fun ApexStoreApp(
         return
     }
 
+    // Fullscreen Admin Login
+    if (currentTab == StoreNavigationTab.ADMIN_LOGIN) {
+        AdminLoginScreen(
+            viewModel = viewModel,
+            onBackClick = { viewModel.navigateTo(StoreNavigationTab.ACCOUNT) },
+            onSuccessLogin = { viewModel.navigateTo(StoreNavigationTab.ADMIN_DASHBOARD) }
+        )
+        return
+    }
+
     // Fullscreen Admin Dashboard
     if (currentTab == StoreNavigationTab.ADMIN_DASHBOARD) {
+        if (currentUser.role == UserRole.USER.name) {
+            // Require authentication before entering dashboard
+            AdminLoginScreen(
+                viewModel = viewModel,
+                onBackClick = { viewModel.navigateTo(StoreNavigationTab.ACCOUNT) },
+                onSuccessLogin = { viewModel.navigateTo(StoreNavigationTab.ADMIN_DASHBOARD) }
+            )
+            return
+        }
         AdminDashboardScreen(
             viewModel = viewModel,
             onBackClick = { viewModel.navigateTo(StoreNavigationTab.HOME) }

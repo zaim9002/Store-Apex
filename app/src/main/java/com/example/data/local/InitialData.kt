@@ -15,6 +15,7 @@ object InitialData {
             email = "zaim9002@gmail.com",
             role = UserRole.SUPER_ADMIN.name,
             avatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
+            passwordHash = com.example.data.util.SecurityHelper.hashPassword("ApexAdmin@2026"),
             status = "ACTIVE"
         ),
         UserEntity(
@@ -23,6 +24,7 @@ object InitialData {
             email = "admin.omar@apexstore.com",
             role = UserRole.ADMIN.name,
             avatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200",
+            passwordHash = com.example.data.util.SecurityHelper.hashPassword("AdminOmar@2026"),
             status = "ACTIVE"
         ),
         UserEntity(
@@ -31,6 +33,7 @@ object InitialData {
             email = "user.khalid@gmail.com",
             role = UserRole.USER.name,
             avatar = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200",
+            passwordHash = com.example.data.util.SecurityHelper.hashPassword("UserPass@2026"),
             status = "ACTIVE"
         )
     )

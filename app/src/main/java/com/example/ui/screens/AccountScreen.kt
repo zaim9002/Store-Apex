@@ -163,9 +163,9 @@ fun AccountScreen(
             }
         }
 
-        // Prominent Admin Dashboard Button (Only visible for Admins & Super Admins)
+        // Admin Dashboard or Login Card
+        Spacer(modifier = Modifier.height(16.dp))
         if (currentUser.role != UserRole.USER.name) {
-            Spacer(modifier = Modifier.height(16.dp))
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = ApexSecondary.copy(alpha = 0.12f)),
@@ -215,6 +215,60 @@ fun AccountScreen(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = null,
                         tint = ApexSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        } else {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = ApexSurfaceCard),
+                border = androidx.compose.foundation.BorderStroke(1.dp, ApexBorder.copy(alpha = 0.5f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .clickable { onNavigateTab(StoreNavigationTab.ADMIN_LOGIN) }
+                    .testTag("account_admin_login_entry_button")
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(ApexSurfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AdminPanelSettings,
+                            contentDescription = null,
+                            tint = ApexTextSecondary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "تسجيل دخول الإدارة (Admin Login)",
+                            color = ApexTextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "الدخول الآمن للمشرفين والمدير العام لإدارة المتجر",
+                            color = ApexTextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = ApexTextMuted,
                         modifier = Modifier.size(20.dp)
                     )
                 }

@@ -34,6 +34,7 @@ enum class StoreNavigationTab {
     DOWNLOADS,
     ACCOUNT,
     SEARCH,
+    ADMIN_LOGIN,
     ADMIN_DASHBOARD
 }
 
@@ -219,6 +220,22 @@ class ApexStoreViewModel(application: Application) : AndroidViewModel(applicatio
         }
         if (role == UserRole.USER && _currentTab.value == StoreNavigationTab.ADMIN_DASHBOARD) {
             _currentTab.value = StoreNavigationTab.HOME
+        }
+    }
+
+    fun loginAdminWithCredentials(
+        email: String,
+        passwordAttempt: String,
+        onResult: (Boolean, String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            val result = repository.loginAdminWithCredentials(email, passwordAttempt)
+            result.onSuccess { user ->
+                _snackbarEvent.emit("مرحباً بك مجدداً ${user.name} في لوحة الإدارة")
+                onResult(true, null)
+            }.onFailure { error ->
+                onResult(false, error.localizedMessage ?: "فشل تسجيل الدخول")
+            }
         }
     }
 
