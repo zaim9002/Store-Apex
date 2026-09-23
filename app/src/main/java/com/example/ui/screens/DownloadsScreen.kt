@@ -159,7 +159,7 @@ fun DownloadsScreen(
                         onRetry = { viewModel.retryDownload(download) },
                         onDelete = { viewModel.deleteDownload(download.id) },
                         onOpen = {
-                            com.example.data.util.PackageInstallerHelper.installPackage(context, download)
+                            com.example.util.PackageInstallerHelper.installPackage(context, download)
                         }
                     )
                 }

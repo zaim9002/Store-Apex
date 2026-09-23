@@ -212,14 +212,35 @@ class ApexStoreViewModel(application: Application) : AndroidViewModel(applicatio
         _adminTab.value = tab
     }
 
-    fun switchUserRole(role: UserRole) {
-        val target = InitialData.users.find { it.role == role.name } ?: InitialData.users.first()
-        repository.switchUser(target)
+    fun registerUser(name: String, email: String, pass: String, onResult: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
-            _snackbarEvent.emit("تم تبديل الحساب إلى: ${target.name} (${target.role})")
+            val res = repository.registerUser(name, email, pass)
+            res.onSuccess { user ->
+                _snackbarEvent.emit("مرحباً بك ${user.name}، تم إنشاء حسابك بنجاح")
+                onResult(true, null)
+            }.onFailure { err ->
+                onResult(false, err.localizedMessage)
+            }
         }
-        if (role == UserRole.USER && _currentTab.value == StoreNavigationTab.ADMIN_DASHBOARD) {
+    }
+
+    fun loginUser(email: String, pass: String, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            val res = repository.loginUser(email, pass)
+            res.onSuccess { user ->
+                _snackbarEvent.emit("أهلاً بك مجدداً ${user.name}")
+                onResult(true, null)
+            }.onFailure { err ->
+                onResult(false, err.localizedMessage)
+            }
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            repository.logout()
             _currentTab.value = StoreNavigationTab.HOME
+            _snackbarEvent.emit("تم تسجيل الخروج بنجاح")
         }
     }
 
@@ -235,6 +256,42 @@ class ApexStoreViewModel(application: Application) : AndroidViewModel(applicatio
                 onResult(true, null)
             }.onFailure { error ->
                 onResult(false, error.localizedMessage ?: "فشل تسجيل الدخول")
+            }
+        }
+    }
+
+    fun savePackageFile(appId: String, uri: android.net.Uri, isXapk: Boolean, onDone: (java.io.File, Long) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val pair = repository.savePackageFromUri(appId, uri, isXapk)
+                onDone(pair.first, pair.second)
+                _snackbarEvent.emit("تم حفظ حزمة التطبيق محلياً في وحدة التخزين الآمنة")
+            } catch (e: Exception) {
+                _snackbarEvent.emit("تعذر حفظ الحزمة: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun saveIconFile(appId: String, uri: android.net.Uri, onDone: (java.io.File) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val file = repository.saveIconFromUri(appId, uri)
+                onDone(file)
+                _snackbarEvent.emit("تم حفظ أيقونة التطبيق في التخزين")
+            } catch (e: Exception) {
+                _snackbarEvent.emit("تعذر حفظ الأيقونة: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun saveScreenshotFile(appId: String, uri: android.net.Uri, index: Int, onDone: (java.io.File) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val file = repository.saveScreenshotFromUri(appId, uri, index)
+                onDone(file)
+                _snackbarEvent.emit("تم حفظ لقطة الشاشة في التخزين")
+            } catch (e: Exception) {
+                _snackbarEvent.emit("تعذر حفظ لقطة الشاشة: ${e.localizedMessage}")
             }
         }
     }

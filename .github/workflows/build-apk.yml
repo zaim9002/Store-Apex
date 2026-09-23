@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Temurin Java 17
         uses: actions/setup-java@v4
@@ -27,9 +29,8 @@ jobs:
 
       - name: Verify Java environment
         run: |
-          echo "Checking Java version..."
           java -version
-          echo "JAVA_HOME is: $JAVA_HOME"
+          echo "JAVA_HOME: $JAVA_HOME"
           JAVA_MAJOR=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}' | awk -F '.' '{print $1}')
           echo "Detected Java major version: $JAVA_MAJOR"
           if [ -z "$JAVA_MAJOR" ] || [ "$JAVA_MAJOR" -lt 17 ]; then
@@ -43,24 +44,24 @@ jobs:
           if [ -f "./debug.keystore" ]; then
             echo "./debug.keystore already exists."
           else
-            echo "Generating temporary debug keystore..."
-            keytool -genkeypair \
+            echo "Generating temporary debug keystore using Java 17 keytool..."
+            "$JAVA_HOME/bin/keytool" -genkeypair \
               -v \
               -keystore ./debug.keystore \
+              -storepass android \
               -alias androiddebugkey \
               -keypass android \
-              -storepass android \
               -dname "CN=Android Debug,O=Android,C=US" \
               -keyalg RSA \
               -keysize 2048 \
               -validity 10000
-
-            if [ ! -f "./debug.keystore" ]; then
-              echo "Error: Failed to create ./debug.keystore"
-              exit 1
-            fi
-            echo "./debug.keystore created successfully."
           fi
+
+          if [ ! -f "./debug.keystore" ]; then
+            echo "Error: ./debug.keystore does not exist and could not be created."
+            exit 1
+          fi
+          echo "./debug.keystore verified successfully."
 
       - name: Build Debug APK
         run: gradle :app:assembleDebug --stacktrace --no-daemon
@@ -69,15 +70,19 @@ jobs:
         run: |
           EXPECTED_APK="app/build/outputs/apk/debug/app-debug.apk"
           if [ -f "$EXPECTED_APK" ]; then
-            echo "Found debug APK at $EXPECTED_APK"
+            echo "Verified expected debug APK exists at: $EXPECTED_APK"
           else
-            echo "Expected APK missing at $EXPECTED_APK. Searching inside app/build/outputs/apk..."
-            find app/build/outputs/apk -type f -name "*.apk" 2>/dev/null || true
-            echo "Error: No debug APK found at $EXPECTED_APK"
+            echo "Error: Expected debug APK not found at $EXPECTED_APK"
+            echo "Searching only inside app/build/outputs/apk..."
+            if [ -d "app/build/outputs/apk" ]; then
+              find app/build/outputs/apk -name "*.apk"
+            else
+              echo "Directory app/build/outputs/apk does not exist."
+            fi
             exit 1
           fi
 
-      - name: Upload Debug APK Artifact
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk

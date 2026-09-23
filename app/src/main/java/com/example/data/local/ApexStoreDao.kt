@@ -90,6 +90,12 @@ interface AppDao {
 
     @Query("SELECT COALESCE(SUM(downloadCount), 0) FROM apps")
     fun getTotalDownloadsCount(): Flow<Long>
+
+    @Query("DELETE FROM apps WHERE id IN ('app-telegram', 'game-asphalt', 'app-vlc', 'game-pubg', 'app-notion', 'game-subway', 'app-canva', 'game-chess', 'app-apex-optimizer')")
+    suspend fun purgeLegacyDemoApps()
+
+    @Query("DELETE FROM apps")
+    suspend fun deleteAllApps()
 }
 
 @Dao
@@ -120,6 +126,9 @@ interface UserDao {
 
     @Query("SELECT COUNT(*) FROM users")
     fun getTotalUsersCount(): Flow<Int>
+
+    @Query("DELETE FROM users WHERE email != 'zaim9002@gmail.com'")
+    suspend fun purgeDemoUsers()
 }
 
 @Dao
@@ -141,6 +150,12 @@ interface AdminDao {
 
     @Delete
     suspend fun deleteAdmin(admin: AdminEntity)
+
+    @Query("DELETE FROM admins WHERE id = :id")
+    suspend fun deleteAdminById(id: String)
+
+    @Query("DELETE FROM admins WHERE email = 'admin.omar@apexstore.com'")
+    suspend fun purgeLegacyDemoAdmins()
 
     @Query("UPDATE admins SET status = :status WHERE id = :id")
     suspend fun updateAdminStatus(id: String, status: String)

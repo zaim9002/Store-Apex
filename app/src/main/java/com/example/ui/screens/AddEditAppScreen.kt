@@ -127,6 +127,32 @@ fun AddEditAppScreen(
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
 
     val uploadState by viewModel.uploadState.collectAsState()
+    val effectiveAppId = remember(app.id) {
+        if (app.id.isBlank() || app.id.startsWith("new_")) "app-${System.currentTimeMillis()}" else app.id
+    }
+
+    // Photo Picker launcher for App Icon (Google Play Policy Zero-Permission)
+    val iconPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let { iconUri ->
+            viewModel.saveIconFile(effectiveAppId, iconUri) { savedFile ->
+                iconUrl = savedFile.absolutePath
+            }
+        }
+    }
+
+    // Photo Picker launcher for Screenshots (Google Play Policy Zero-Permission)
+    val screenshotPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let { shotUri ->
+            val count = screenshots.split(",").filter { it.isNotBlank() }.size
+            viewModel.saveScreenshotFile(effectiveAppId, shotUri, count + 1) { savedFile ->
+                screenshots = if (screenshots.isBlank()) savedFile.absolutePath else "$screenshots,${savedFile.absolutePath}"
+            }
+        }
+    }
 
     // File picker launcher for APK and XAPK files
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -192,12 +218,22 @@ fun AddEditAppScreen(
                 selectedFileName = displayName
                 isExtractingApk = false
 
+                val isXapk = displayName.endsWith(".xapk", ignoreCase = true)
+                // Save package file directly into app storage
+                viewModel.savePackageFile(effectiveAppId, fileUri, isXapk) { localPackageFile, bytesWritten ->
+                    if (isXapk) {
+                        xapkUrl = localPackageFile.absolutePath
+                    } else {
+                        apkUrl = localPackageFile.absolutePath
+                    }
+                }
+
                 // Trigger real-time upload progress simulation
                 viewModel.simulateUpload(displayName, fileSize) { generatedUrl ->
-                    if (displayName.endsWith(".xapk", ignoreCase = true)) {
-                        xapkUrl = generatedUrl
+                    if (isXapk) {
+                        if (xapkUrl.isBlank()) xapkUrl = generatedUrl
                     } else {
-                        apkUrl = generatedUrl
+                        if (apkUrl.isBlank()) apkUrl = generatedUrl
                     }
                 }
             }
@@ -585,7 +621,7 @@ fun AddEditAppScreen(
                 }
             }
 
-            // Section 5: Media URLs
+            // Section 5: Media & Visual Assets
             item {
                 Card(
                     shape = RoundedCornerShape(14.dp),
@@ -597,12 +633,31 @@ fun AddEditAppScreen(
                         Text(text = "5. الوسائط والصور المعروضة", color = ApexTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        FormTextField(
-                            value = iconUrl,
-                            onValueChange = { iconUrl = it },
-                            label = "رابط أيقونة التطبيق (Icon URL)",
-                            isLtr = true
-                        )
+                        // App Icon Row with Photo Picker Button
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Button(
+                                onClick = {
+                                    iconPickerLauncher.launch(
+                                        androidx.activity.result.PickVisualMediaRequest(
+                                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                                        )
+                                    )
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = ApexSecondary, contentColor = Color.White),
+                                modifier = Modifier.height(38.dp)
+                            ) {
+                                Text(text = "🖼️ رفع أيقونة", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            FormTextField(
+                                value = iconUrl,
+                                onValueChange = { iconUrl = it },
+                                label = "مسار أو رابط الأيقونة (Icon)",
+                                isLtr = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
 
                         FormTextField(
@@ -613,12 +668,32 @@ fun AddEditAppScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        FormTextField(
-                            value = screenshots,
-                            onValueChange = { screenshots = it },
-                            label = "لقطات الشاشة (روابط مفصولة بفواصل)",
-                            isLtr = true
-                        )
+                        // Screenshot Row with Photo Picker Button
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Button(
+                                onClick = {
+                                    screenshotPickerLauncher.launch(
+                                        androidx.activity.result.PickVisualMediaRequest(
+                                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                                        )
+                                    )
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = ApexSurfaceVariant, contentColor = ApexPrimary),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, ApexBorder),
+                                modifier = Modifier.height(38.dp)
+                            ) {
+                                Text(text = "📸 إضافة لقطة", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            FormTextField(
+                                value = screenshots,
+                                onValueChange = { screenshots = it },
+                                label = "لقطات الشاشة (مسارات أو روابط)",
+                                isLtr = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
             }

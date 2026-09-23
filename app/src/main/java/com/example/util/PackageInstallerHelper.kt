@@ -6,7 +6,9 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.widget.Toast
 import androidx.core.content.FileProvider
+import com.example.data.model.DownloadEntity
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -14,6 +16,29 @@ import java.io.InputStream
 import java.util.zip.ZipInputStream
 
 object PackageInstallerHelper {
+
+    /**
+     * Installs package from DownloadEntity with user feedback.
+     */
+    fun installPackage(context: Context, download: DownloadEntity, onStatus: (String) -> Unit = {}): Boolean {
+        if (download.localUri.isBlank()) {
+            val msg = "ملف التحميل غير مكتمل أو غير متوفر في الذاكرة"
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            onStatus(msg)
+            return false
+        }
+        val file = File(download.localUri)
+        if (!file.exists() || file.length() == 0L) {
+            val msg = "الملف غير موجود في مسار التخزين: ${file.name}"
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            onStatus(msg)
+            return false
+        }
+        return installPackage(context, file) { statusMsg ->
+            Toast.makeText(context, statusMsg, Toast.LENGTH_SHORT).show()
+            onStatus(statusMsg)
+        }
+    }
 
     /**
      * Installs an APK or XAPK file using Android FileProvider and PackageInstaller Intent.
