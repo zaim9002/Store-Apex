@@ -1,5 +1,6 @@
 package com.example.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -45,10 +46,21 @@ fun ApexStoreApp(
     val currentTab by viewModel.currentTab.collectAsState()
     val selectedApp by viewModel.selectedApp.collectAsState()
     val editingApp by viewModel.editingApp.collectAsState()
+    val adminTab by viewModel.adminTab.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
     val downloads by viewModel.downloads.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Intercept Android hardware & gesture back button
+    val canHandleBack = selectedApp != null ||
+            editingApp != null ||
+            currentTab != StoreNavigationTab.HOME ||
+            (currentTab == StoreNavigationTab.ADMIN_DASHBOARD && adminTab != AdminTab.OVERVIEW)
+
+    BackHandler(enabled = canHandleBack) {
+        viewModel.handleBackPress()
+    }
 
     // Listen for snackbar notifications
     LaunchedEffect(viewModel) {
@@ -67,7 +79,7 @@ fun ApexStoreApp(
         AppDetailScreen(
             app = selectedApp!!,
             viewModel = viewModel,
-            onBackClick = { viewModel.closeAppDetail() }
+            onBackClick = { viewModel.handleBackPress() }
         )
         return
     }
@@ -77,7 +89,7 @@ fun ApexStoreApp(
         AddEditAppScreen(
             app = editingApp!!,
             viewModel = viewModel,
-            onBackClick = { viewModel.closeAddEditApp() }
+            onBackClick = { viewModel.handleBackPress() }
         )
         return
     }
@@ -86,7 +98,7 @@ fun ApexStoreApp(
     if (currentTab == StoreNavigationTab.SEARCH) {
         SearchScreen(
             viewModel = viewModel,
-            onBackClick = { viewModel.navigateTo(StoreNavigationTab.HOME) }
+            onBackClick = { viewModel.handleBackPress() }
         )
         return
     }
@@ -95,7 +107,7 @@ fun ApexStoreApp(
     if (currentTab == StoreNavigationTab.DOWNLOADS) {
         DownloadsScreen(
             viewModel = viewModel,
-            onBackClick = { viewModel.navigateTo(StoreNavigationTab.HOME) }
+            onBackClick = { viewModel.handleBackPress() }
         )
         return
     }
@@ -104,7 +116,7 @@ fun ApexStoreApp(
     if (currentTab == StoreNavigationTab.ADMIN_LOGIN) {
         AdminLoginScreen(
             viewModel = viewModel,
-            onBackClick = { viewModel.navigateTo(StoreNavigationTab.ACCOUNT) },
+            onBackClick = { viewModel.handleBackPress() },
             onSuccessLogin = { viewModel.navigateTo(StoreNavigationTab.ADMIN_DASHBOARD) }
         )
         return
@@ -116,14 +128,14 @@ fun ApexStoreApp(
             // Require authentication before entering dashboard
             AdminLoginScreen(
                 viewModel = viewModel,
-                onBackClick = { viewModel.navigateTo(StoreNavigationTab.ACCOUNT) },
+                onBackClick = { viewModel.handleBackPress() },
                 onSuccessLogin = { viewModel.navigateTo(StoreNavigationTab.ADMIN_DASHBOARD) }
             )
             return
         }
         AdminDashboardScreen(
             viewModel = viewModel,
-            onBackClick = { viewModel.navigateTo(StoreNavigationTab.HOME) }
+            onBackClick = { viewModel.handleBackPress() }
         )
         return
     }

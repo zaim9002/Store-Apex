@@ -52,8 +52,9 @@ class ApexStoreRepository(private val context: Context) {
     private val activityLogDao = db.activityLogDao()
 
     private val scope = CoroutineScope(Dispatchers.IO)
+    private val sessionPrefs = context.getSharedPreferences("apex_store_auth_session", Context.MODE_PRIVATE)
 
-    // Current authenticated user session (Defaults to regular User to ensure security boundaries)
+    // Current authenticated user session (Defaults to regular User until restored)
     private val _currentUser = MutableStateFlow<UserEntity>(defaultGuestUser)
     val currentUser: StateFlow<UserEntity> = _currentUser.asStateFlow()
 
@@ -80,8 +81,42 @@ class ApexStoreRepository(private val context: Context) {
     init {
         scope.launch {
             seedDatabaseIfEmpty()
-            refreshAdminProfile()
+            restoreUserSession()
         }
+    }
+
+    private suspend fun restoreUserSession() {
+        try {
+            val savedUserId = sessionPrefs.getString("saved_user_id", null)
+            val savedEmail = sessionPrefs.getString("saved_user_email", null)
+
+            var user: UserEntity? = null
+            if (!savedUserId.isNullOrBlank()) {
+                user = userDao.getUserByIdDirect(savedUserId)
+            }
+            if (user == null && !savedEmail.isNullOrBlank()) {
+                user = userDao.getUserByEmail(savedEmail)
+            }
+
+            if (user != null && user.status == "ACTIVE") {
+                _currentUser.value = user
+                refreshAdminProfile()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun persistUserSession(user: UserEntity) {
+        sessionPrefs.edit()
+            .putString("saved_user_id", user.id)
+            .putString("saved_user_email", user.email)
+            .putString("saved_user_role", user.role)
+            .apply()
+    }
+
+    private fun clearPersistedSession() {
+        sessionPrefs.edit().clear().apply()
     }
 
     private suspend fun seedDatabaseIfEmpty() {
@@ -89,6 +124,12 @@ class ApexStoreRepository(private val context: Context) {
         appDao.purgeLegacyDemoApps()
         adminDao.purgeLegacyDemoAdmins()
         userDao.purgeDemoUsers()
+
+        // Seed initial store apps and games if catalog is empty
+        val currentAppCount = appDao.getDirectAppCount()
+        if (currentAppCount == 0 && InitialData.initialApps.isNotEmpty()) {
+            appDao.insertApps(InitialData.initialApps)
+        }
 
         // Ensure Super Admin exists in users table with secure password hash
         val superAdmin = userDao.getUserByEmail(SecurityValidator.SUPER_ADMIN_EMAIL)
@@ -132,6 +173,7 @@ class ApexStoreRepository(private val context: Context) {
     // --- Authentication & Session Management ---
     fun switchUser(user: UserEntity) {
         _currentUser.value = user
+        persistUserSession(user)
         scope.launch {
             refreshAdminProfile()
         }
@@ -140,6 +182,7 @@ class ApexStoreRepository(private val context: Context) {
     suspend fun loginWithEmail(email: String): Boolean {
         val user = userDao.getUserByEmail(email) ?: return false
         _currentUser.value = user
+        persistUserSession(user)
         refreshAdminProfile()
         return true
     }
@@ -166,7 +209,7 @@ class ApexStoreRepository(private val context: Context) {
             com.example.data.util.SecurityHelper.verifyPassword(passwordAttempt, user.passwordHash)
         } else {
             // Default fallback if initial hash was not populated
-            passwordAttempt == "ApexAdmin@2026"
+            passwordAttempt == "Apex@SuperAdmin2026" || passwordAttempt == "ApexAdmin@2026"
         }
 
         if (!isPasswordValid) {
@@ -182,6 +225,7 @@ class ApexStoreRepository(private val context: Context) {
         }
 
         _currentUser.value = user
+        persistUserSession(user)
         refreshAdminProfile()
 
         logActivity(
@@ -215,6 +259,7 @@ class ApexStoreRepository(private val context: Context) {
         )
         userDao.insertUser(newUser)
         _currentUser.value = newUser
+        persistUserSession(newUser)
         refreshAdminProfile()
         return Result.success(newUser)
     }
@@ -235,11 +280,13 @@ class ApexStoreRepository(private val context: Context) {
             return Result.failure(Exception("كلمة المرور غير صحيحة."))
         }
         _currentUser.value = user
+        persistUserSession(user)
         refreshAdminProfile()
         return Result.success(user)
     }
 
     suspend fun logout() {
+        clearPersistedSession()
         _currentUser.value = defaultGuestUser
         _currentAdminProfile.value = null
     }
@@ -301,6 +348,7 @@ class ApexStoreRepository(private val context: Context) {
     fun searchApps(query: String): Flow<List<AppEntity>> = appDao.searchApps(query)
     fun getByCategory(category: String): Flow<List<AppEntity>> = appDao.getByCategory(category)
     fun getAppById(id: String): Flow<AppEntity?> = appDao.getAppById(id)
+    suspend fun getAppByIdDirect(id: String): AppEntity? = appDao.getAppByIdDirect(id)
 
     // Admin-only list (includes unpublished/drafts)
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -331,7 +379,7 @@ class ApexStoreRepository(private val context: Context) {
         val user = _currentUser.value
         SecurityValidator.requireAdminOrSuperAdmin(user, _currentAdminProfile.value, "EDIT")
         
-        appDao.updateApp(app.copy(updatedAt = System.currentTimeMillis()))
+        appDao.insertApp(app.copy(updatedAt = System.currentTimeMillis()))
         
         logActivity(
             action = "EDIT_APP",

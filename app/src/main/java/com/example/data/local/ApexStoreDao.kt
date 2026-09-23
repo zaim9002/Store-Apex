@@ -76,6 +76,12 @@ interface AppDao {
     @Query("SELECT COUNT(*) FROM apps")
     fun getTotalAppsCount(): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM apps")
+    suspend fun getDirectAppCount(): Int
+
+    @Query("SELECT * FROM apps WHERE id = :id LIMIT 1")
+    suspend fun getAppByIdDirect(id: String): AppEntity?
+
     @Query("SELECT COUNT(*) FROM apps WHERE type = 'APP'")
     fun getAppsOnlyCount(): Flow<Int>
 
@@ -105,6 +111,9 @@ interface UserDao {
 
     @Query("SELECT * FROM users WHERE id = :id LIMIT 1")
     fun getUserById(id: String): Flow<UserEntity?>
+
+    @Query("SELECT * FROM users WHERE id = :id LIMIT 1")
+    suspend fun getUserByIdDirect(id: String): UserEntity?
 
     @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
     suspend fun getUserByEmail(email: String): UserEntity?

@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Search
@@ -30,6 +31,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -114,7 +116,9 @@ fun HomeScreen(
                     Text(
                         text = "ابحث عن التطبيقات، الألعاب، وحزم APK / XAPK...",
                         color = ApexTextMuted,
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -122,8 +126,11 @@ fun HomeScreen(
 
         // 2. Hero Featured Banner (Highlighted item)
         item {
+            val heroApp = featuredApps.firstOrNull() ?: latestApps.firstOrNull() ?: latestGames.firstOrNull()
+            val heroDownload = heroApp?.let { app -> downloads.find { it.appId == app.id } }
             HeroBannerSection(
-                featuredApp = featuredApps.firstOrNull(),
+                featuredApp = heroApp,
+                downloadState = heroDownload,
                 onOpenApp = { app -> viewModel.openAppDetail(app) },
                 onDownload = { app -> viewModel.startDownload(app) }
             )
@@ -287,121 +294,233 @@ fun HomeScreen(
 @Composable
 private fun HeroBannerSection(
     featuredApp: AppEntity?,
+    downloadState: com.example.data.model.DownloadEntity? = null,
     onOpenApp: (AppEntity) -> Unit,
     onDownload: (AppEntity) -> Unit
 ) {
-    Box(
+    val isDownloading = downloadState?.status == com.example.data.model.DownloadStatus.DOWNLOADING.name
+    val isCompleted = downloadState?.status == com.example.data.model.DownloadStatus.COMPLETED.name
+    val isXapk = featuredApp?.xapkUrl?.isNotBlank() == true || featuredApp?.packageName?.endsWith("xapk", ignoreCase = true) == true
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = ApexSurfaceCard),
+        border = androidx.compose.foundation.BorderStroke(1.dp, ApexPrimary.copy(alpha = 0.45f)),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
-            .height(210.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(ApexSurfaceCard)
-            .border(1.dp, ApexPrimary.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+            .padding(horizontal = 16.dp, vertical = 8.dp)
             .clickable { featuredApp?.let { onOpenApp(it) } }
     ) {
-        // Banner Image
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(featuredApp?.bannerUrl?.ifBlank { "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800" })
-                .crossfade(true)
-                .build(),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // Gradient Overlay
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            ApexBackground.copy(alpha = 0.85f),
-                            ApexBackground.copy(alpha = 0.98f)
-                        ),
-                        startY = 50f
-                    )
-                )
-        )
-
-        // Text & Action overlay
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Bottom
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // Background Banner Image with Blur/Gradient
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(featuredApp?.bannerUrl?.ifBlank { "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800" })
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(ApexPrimary)
-                    .padding(horizontal = 8.dp, vertical = 3.dp)
-            ) {
-                Text(
-                    text = "مميز اليوم ★",
-                    color = ApexBackground,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = featuredApp?.name ?: "APEX STORE - متجر التطبيقات والألعاب",
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.ExtraBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                    .matchParentSize()
             )
 
-            Text(
-                text = featuredApp?.shortDescription ?: "تحميل مباشر لملفات APK و XAPK بسرعة فائقة وبأعلى مستويات الأمان",
-                color = ApexTextSecondary,
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Button(
-                    onClick = { featuredApp?.let { onDownload(it) } },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = ApexPrimary,
-                        contentColor = ApexBackground
-                    ),
-                    modifier = Modifier.height(38.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Download,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+            // Multi-stop Gradient Overlay ensuring text is perfectly readable
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.35f),
+                                ApexBackground.copy(alpha = 0.78f),
+                                ApexBackground.copy(alpha = 0.96f),
+                                ApexBackground
+                            )
+                        )
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = "تحميل مباشر ⬇", fontSize = 12.5.sp, fontWeight = FontWeight.ExtraBold)
+            )
+
+            // Content Container with App Icon, Title, Description, and Actions
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                // Top Tag Row: "مميز اليوم ★" + "APK / XAPK" badge
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(ApexPrimary)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "★ مميز اليوم في المتجر",
+                            color = ApexBackground,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isXapk) ApexSecondary.copy(alpha = 0.25f) else ApexTertiary.copy(alpha = 0.25f))
+                                .border(1.dp, if (isXapk) ApexSecondary else ApexTertiary, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = if (isXapk) "XAPK" else "APK",
+                                color = if (isXapk) ApexSecondary else ApexTertiary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
                 }
 
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                Button(
-                    onClick = { featuredApp?.let { onOpenApp(it) } },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = ApexSurfaceVariant.copy(alpha = 0.85f),
-                        contentColor = ApexTextPrimary
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, ApexBorder.copy(alpha = 0.5f)),
-                    modifier = Modifier.height(38.dp)
+                // App Identity Row: Clearly visible App Icon + Title & Developer & Rating
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "التفاصيل", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    // Distinct, clearly sized App Icon
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(featuredApp?.iconUrl?.ifBlank { "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200" })
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = featuredApp?.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(60.dp)
+                            .clip(RoundedCornerShape(15.dp))
+                            .background(ApexSurfaceVariant)
+                            .border(1.5.dp, ApexPrimary.copy(alpha = 0.6f), RoundedCornerShape(15.dp))
+                    )
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = featuredApp?.name ?: "APEX STORE - متجر التطبيقات والألعاب",
+                            color = Color.White,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            maxLines = 2,
+                            lineHeight = 22.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(3.dp))
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = featuredApp?.developer ?: "APEX Technologies",
+                                color = ApexTextSecondary,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = ApexAmber,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text(
+                                    text = String.format("%.1f", featuredApp?.rating ?: 4.8f),
+                                    color = ApexAmber,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Clear, complete short description (fully readable, not truncated abruptly)
+                Text(
+                    text = featuredApp?.shortDescription ?: "تحميل مباشر لملفات وتطبيقات APK و XAPK بسرعة فائقة وبأعلى مستويات الأمان والفحص التلقائي.",
+                    color = ApexTextSecondary,
+                    fontSize = 12.5.sp,
+                    maxLines = 2,
+                    lineHeight = 17.sp,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Action Buttons Row: Download & Details
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(
+                        onClick = { featuredApp?.let { onDownload(it) } },
+                        enabled = !isDownloading,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isCompleted) ApexTertiary else ApexPrimary,
+                            contentColor = ApexBackground
+                        ),
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .height(42.dp)
+                    ) {
+                        if (isDownloading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = ApexBackground,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "جاري التحميل...", fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                        } else if (isCompleted) {
+                            Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "تثبيت الحزمة ✓", fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                        } else {
+                            Icon(imageVector = Icons.Default.Download, contentDescription = null, modifier = Modifier.size(17.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            val sizeText = featuredApp?.size?.let { " ($it)" } ?: ""
+                            Text(
+                                text = "تحميل مباشر ⬇$sizeText",
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Button(
+                        onClick = { featuredApp?.let { onOpenApp(it) } },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ApexSurfaceVariant,
+                            contentColor = ApexTextPrimary
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, ApexBorder.copy(alpha = 0.5f)),
+                        modifier = Modifier
+                            .weight(0.9f)
+                            .height(42.dp)
+                    ) {
+                        Text(text = "تفاصيل التطبيق", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
                 }
             }
         }

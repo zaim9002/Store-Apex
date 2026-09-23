@@ -159,6 +159,9 @@ class ApexStoreViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
+    // Backstack for Android back button navigation
+    private val tabBackStack = mutableListOf<StoreNavigationTab>()
+
     init {
         // Dismiss splash after brief display
         viewModelScope.launch {
@@ -168,6 +171,12 @@ class ApexStoreViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun navigateTo(tab: StoreNavigationTab) {
+        if (_currentTab.value != tab) {
+            tabBackStack.add(_currentTab.value)
+            if (tabBackStack.size > 30) {
+                tabBackStack.removeAt(0)
+            }
+        }
         _currentTab.value = tab
         _selectedApp.value = null
         _editingApp.value = null
@@ -194,7 +203,7 @@ class ApexStoreViewModel(application: Application) : AndroidViewModel(applicatio
             packageName = "com.developer.app",
             androidVersion = "Android 8.0+",
             category = "tools",
-            published = false,
+            published = true, // Default to true so newly added apps are immediately visible
             createdBy = currentUser.value.email
         )
     }
@@ -210,6 +219,39 @@ class ApexStoreViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun setAdminTab(tab: AdminTab) {
         _adminTab.value = tab
+    }
+
+    /**
+     * Handles Android back button & in-app back clicks:
+     * 1. Closes Add/Edit screen if open
+     * 2. Closes App Details screen if open
+     * 3. Returns to Admin Overview if in a sub-tab of Admin Dashboard
+     * 4. Pops the previous tab from history stack
+     * 5. Returns to HOME before allowing app exit
+     */
+    fun handleBackPress(): Boolean {
+        if (_editingApp.value != null) {
+            closeAddEditApp()
+            return true
+        }
+        if (_selectedApp.value != null) {
+            closeAppDetail()
+            return true
+        }
+        if (_currentTab.value == StoreNavigationTab.ADMIN_DASHBOARD && _adminTab.value != AdminTab.OVERVIEW) {
+            _adminTab.value = AdminTab.OVERVIEW
+            return true
+        }
+        if (tabBackStack.isNotEmpty()) {
+            val previousTab = tabBackStack.removeAt(tabBackStack.lastIndex)
+            _currentTab.value = previousTab
+            return true
+        }
+        if (_currentTab.value != StoreNavigationTab.HOME) {
+            _currentTab.value = StoreNavigationTab.HOME
+            return true
+        }
+        return false
     }
 
     fun registerUser(name: String, email: String, pass: String, onResult: (Boolean, String?) -> Unit) {
@@ -336,8 +378,8 @@ class ApexStoreViewModel(application: Application) : AndroidViewModel(applicatio
     fun saveApp(app: AppEntity) {
         viewModelScope.launch {
             try {
-                val exists = allAppsAdmin.value.any { it.id == app.id }
-                if (exists) {
+                val directApp = repository.getAppByIdDirect(app.id)
+                if (directApp != null) {
                     repository.updateApp(app)
                     _snackbarEvent.emit("تم تحديث التطبيق بنجاح")
                 } else {

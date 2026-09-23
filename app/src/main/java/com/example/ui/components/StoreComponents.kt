@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -133,6 +135,7 @@ fun ApexStoreLogoBadge(
 /**
  * Top Header for APEX STORE
  * Guaranteed LTR isolation for brand name "APEX STORE" so it NEVER gets reversed or distorted in RTL Arabic layout.
+ * Includes statusBarsPadding to prevent overlapping with system status bar icons (battery, clock, wifi).
  */
 @Composable
 fun ApexTopBar(
@@ -149,12 +152,13 @@ fun ApexTopBar(
         tonalElevation = 6.dp,
         modifier = modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .border(width = 1.dp, color = ApexBorder.copy(alpha = 0.35f))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -166,22 +170,20 @@ fun ApexTopBar(
                         .clickable { onAccountClick() }
                         .padding(vertical = 4.dp)
                 ) {
-                    ApexStoreLogoBadge(size = 38)
+                    ApexStoreLogoBadge(size = 36)
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(9.dp))
 
                     Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "APEX STORE",
-                                color = Color.White,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 18.sp,
-                                letterSpacing = 1.sp,
-                                fontFamily = FontFamily.SansSerif,
-                                maxLines = 1
-                            )
-                        }
+                        Text(
+                            text = "APEX STORE",
+                            color = Color.White,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 17.sp,
+                            letterSpacing = 0.8.sp,
+                            fontFamily = FontFamily.SansSerif,
+                            maxLines = 1
+                        )
 
                         // Role Badge if Admin or Super Admin
                         if (currentUser.role != UserRole.USER.name) {
@@ -190,15 +192,15 @@ fun ApexTopBar(
                             Text(
                                 text = roleTitle,
                                 color = badgeColor,
-                                fontSize = 9.5.sp,
+                                fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.5.sp
                             )
                         } else {
                             Text(
                                 text = "OFFICIAL STORE",
-                                color = ApexPrimary.copy(alpha = 0.8f),
-                                fontSize = 9.sp,
+                                color = ApexPrimary.copy(alpha = 0.85f),
+                                fontSize = 8.5.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 letterSpacing = 0.5.sp
                             )
@@ -207,21 +209,71 @@ fun ApexTopBar(
                 }
             }
 
-            // Action Icons Row
+            // Action Icons Row: Proportioned, non-overlapping, crisp 20dp icons inside 38dp circular backgrounds
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Admin Dashboard shortcut if authorized
+                // Downloads Tracker Button with Active Badge
+                Box(
+                    modifier = Modifier
+                        .testTag("top_bar_downloads_button")
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(ApexSurfaceVariant)
+                        .border(1.dp, ApexBorder.copy(alpha = 0.45f), CircleShape)
+                        .clickable { onDownloadsClick() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = "التحميلات",
+                        tint = if (activeDownloadsCount > 0) ApexPrimary else ApexTextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    if (activeDownloadsCount > 0) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(2.dp)
+                                .size(9.dp)
+                                .clip(CircleShape)
+                                .background(ApexPrimary)
+                                .border(1.5.dp, ApexSurface, CircleShape)
+                        )
+                    }
+                }
+
+                // Search Icon Button
+                Box(
+                    modifier = Modifier
+                        .testTag("top_bar_search_button")
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(ApexSurfaceVariant)
+                        .border(1.dp, ApexBorder.copy(alpha = 0.45f), CircleShape)
+                        .clickable { onSearchClick() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "بحث",
+                        tint = ApexTextPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Admin Dashboard shortcut if authorized, or Profile Button
                 if (currentUser.role != UserRole.USER.name) {
-                    IconButton(
-                        onClick = onAdminDashboardClick,
+                    Box(
                         modifier = Modifier
                             .testTag("top_bar_admin_button")
                             .size(38.dp)
                             .clip(CircleShape)
                             .background(ApexSecondary.copy(alpha = 0.16f))
-                            .border(1.dp, ApexSecondary.copy(alpha = 0.4f), CircleShape)
+                            .border(1.dp, ApexSecondary.copy(alpha = 0.5f), CircleShape)
+                            .clickable { onAdminDashboardClick() },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.AdminPanelSettings,
@@ -230,70 +282,24 @@ fun ApexTopBar(
                             modifier = Modifier.size(20.dp)
                         )
                     }
-                }
-
-                // Downloads Tracker Button with Active Badge
-                IconButton(
-                    onClick = onDownloadsClick,
-                    modifier = Modifier
-                        .testTag("top_bar_downloads_button")
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(ApexSurfaceVariant)
-                        .border(1.dp, ApexBorder.copy(alpha = 0.5f), CircleShape)
-                ) {
-                    Box(contentAlignment = Alignment.TopEnd) {
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .testTag("top_bar_account_button")
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(ApexPrimary.copy(alpha = 0.14f))
+                            .border(1.dp, ApexPrimary.copy(alpha = 0.4f), CircleShape)
+                            .clickable { onAccountClick() },
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = "التحميلات",
-                            tint = if (activeDownloadsCount > 0) ApexPrimary else ApexTextSecondary,
-                            modifier = Modifier.size(19.dp)
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "الحساب",
+                            tint = ApexPrimary,
+                            modifier = Modifier.size(20.dp)
                         )
-                        if (activeDownloadsCount > 0) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(ApexPrimary)
-                            )
-                        }
                     }
-                }
-
-                // Search Icon Button
-                IconButton(
-                    onClick = onSearchClick,
-                    modifier = Modifier
-                        .testTag("top_bar_search_button")
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(ApexSurfaceVariant)
-                        .border(1.dp, ApexBorder.copy(alpha = 0.5f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "بحث",
-                        tint = ApexTextPrimary,
-                        modifier = Modifier.size(19.dp)
-                    )
-                }
-
-                // User Avatar Icon Button
-                IconButton(
-                    onClick = onAccountClick,
-                    modifier = Modifier
-                        .testTag("top_bar_account_button")
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(ApexPrimary.copy(alpha = 0.14f))
-                        .border(1.dp, ApexPrimary.copy(alpha = 0.35f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "الحساب",
-                        tint = ApexPrimary,
-                        modifier = Modifier.size(19.dp)
-                    )
                 }
             }
         }
@@ -683,10 +689,10 @@ fun AppRankedCard(
                         else -> ApexBackground
                     }
                 ),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
                 modifier = Modifier
                     .height(36.dp)
-                    .width(96.dp)
+                    .widthIn(min = 90.dp)
             ) {
                 if (isDownloading) {
                     CircularProgressIndicator(

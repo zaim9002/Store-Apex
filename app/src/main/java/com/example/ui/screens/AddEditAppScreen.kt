@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -65,6 +66,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -119,7 +121,7 @@ fun AddEditAppScreen(
     var apkUrl by remember { mutableStateOf(app.apkUrl) }
     var xapkUrl by remember { mutableStateOf(app.xapkUrl) }
     var downloadSource by remember { mutableStateOf(app.downloadSource) }
-    var published by remember { mutableStateOf(app.published) }
+    var published by remember { mutableStateOf(if (app.name.isBlank()) true else app.published) }
     var isFeatured by remember { mutableStateOf(app.isFeatured) }
 
     var selectedFileName by remember { mutableStateOf("") }
@@ -251,12 +253,13 @@ fun AddEditAppScreen(
             tonalElevation = 6.dp,
             modifier = Modifier
                 .fillMaxWidth()
+                .statusBarsPadding()
                 .border(1.dp, ApexBorder.copy(alpha = 0.4f))
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
@@ -274,15 +277,19 @@ fun AddEditAppScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Text(
-                    text = if (app.name.isBlank()) "إضافة تطبيق / لعبة جديدة" else "تعديل: ${app.name}",
+                    text = if (app.name.isBlank()) "إضافة تطبيق / لعبة" else "تعديل: ${app.name}",
                     color = ApexTextPrimary,
-                    fontSize = 17.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Button(
                     onClick = {
