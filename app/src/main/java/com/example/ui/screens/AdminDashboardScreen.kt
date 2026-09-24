@@ -105,7 +105,7 @@ fun AdminDashboardScreen(
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
     val activeTab by viewModel.adminTab.collectAsState()
-    val isSuperAdmin = currentUser.role == UserRole.SUPER_ADMIN.name
+    val isSuperAdmin = currentUser.isSuperAdmin
 
     Column(
         modifier = modifier
@@ -578,8 +578,19 @@ private fun AdminAdminsTab(viewModel: ApexStoreViewModel) {
     if (showAddDialog) {
         AddAdminDialog(
             onDismiss = { showAddDialog = false },
-            onAdd = { email, name, canAdd, canEdit, canDelete, canPublish, canUpload, canManageAdmins ->
-                viewModel.addAdmin(email, name, canAdd, canEdit, canDelete, canPublish, canUpload, canManageAdmins)
+            onAdd = { email, name, password, role, canAdd, canEdit, canDelete, canPublish, canUpload, canManageAdmins ->
+                viewModel.addAdmin(
+                    email = email,
+                    name = name,
+                    password = password,
+                    role = role,
+                    canAdd = canAdd,
+                    canEdit = canEdit,
+                    canDelete = canDelete,
+                    canPublish = canPublish,
+                    canUpload = canUpload,
+                    canManageAdmins = canManageAdmins
+                )
                 showAddDialog = false
             }
         )
@@ -748,10 +759,12 @@ private fun PermissionToggleRow(label: String, checked: Boolean, onCheckedChange
 @Composable
 private fun AddAdminDialog(
     onDismiss: () -> Unit,
-    onAdd: (email: String, name: String, canAdd: Boolean, canEdit: Boolean, canDelete: Boolean, canPublish: Boolean, canUpload: Boolean, canManageAdmins: Boolean) -> Unit
+    onAdd: (email: String, name: String, password: String, role: String, canAdd: Boolean, canEdit: Boolean, canDelete: Boolean, canPublish: Boolean, canUpload: Boolean, canManageAdmins: Boolean) -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("ApexAdmin@2026") }
+    var role by remember { mutableStateOf(UserRole.ADMIN.roleKey) }
     var canAdd by remember { mutableStateOf(true) }
     var canEdit by remember { mutableStateOf(true) }
     var canDelete by remember { mutableStateOf(false) }
@@ -778,6 +791,13 @@ private fun AddAdminDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("كلمة المرور الخاصة بالمشرف") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("add_admin_password_input")
+                )
                 Text(text = "تحديد الصلاحيات الممنوحة:", color = ApexTextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 PermissionToggleRow("إضافة تطبيقات", canAdd) { canAdd = it }
                 PermissionToggleRow("تعديل تطبيقات", canEdit) { canEdit = it }
@@ -789,7 +809,11 @@ private fun AddAdminDialog(
         },
         confirmButton = {
             Button(
-                onClick = { if (email.isNotBlank()) onAdd(email, name, canAdd, canEdit, canDelete, canPublish, canUpload, canManageAdmins) },
+                onClick = {
+                    if (email.isNotBlank()) {
+                        onAdd(email, name, password, role, canAdd, canEdit, canDelete, canPublish, canUpload, canManageAdmins)
+                    }
+                },
                 colors = ButtonDefaults.buttonColors(containerColor = ApexPrimary)
             ) {
                 Text("حفظ المشرف", color = ApexBackground)

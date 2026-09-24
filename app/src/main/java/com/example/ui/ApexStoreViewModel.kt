@@ -338,6 +338,42 @@ class ApexStoreViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    fun uploadPackageToFirebase(
+        appId: String,
+        fileName: String,
+        fileUri: android.net.Uri,
+        isXapk: Boolean,
+        fileSizeBytes: Long,
+        onDone: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val url = repository.uploadPackageToFirebase(appId, fileName, fileUri, isXapk, fileSizeBytes) {}
+                onDone(url)
+                _snackbarEvent.emit("تم رفع حزمة التطبيق بنجاح إلى Firebase Storage")
+            } catch (e: Exception) {
+                _snackbarEvent.emit("تنبيه الرفع: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun uploadImageToFirebase(
+        appId: String,
+        category: String,
+        uri: android.net.Uri,
+        onDone: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val fileName = "${category}_${System.currentTimeMillis()}.png"
+                val url = repository.uploadImageToFirebase(appId, category, fileName, uri)
+                onDone(url)
+            } catch (e: Exception) {
+                onDone(uri.toString())
+            }
+        }
+    }
+
     fun startDownload(app: AppEntity, fileType: String = "APK") {
         viewModelScope.launch {
             try {
@@ -419,18 +455,22 @@ class ApexStoreViewModel(application: Application) : AndroidViewModel(applicatio
     fun addAdmin(
         email: String,
         name: String,
-        canAdd: Boolean,
-        canEdit: Boolean,
-        canDelete: Boolean,
-        canPublish: Boolean,
-        canUpload: Boolean,
-        canManageAdmins: Boolean
+        password: String = "ApexAdmin@2026",
+        role: String = UserRole.ADMIN.roleKey,
+        canAdd: Boolean = true,
+        canEdit: Boolean = true,
+        canDelete: Boolean = false,
+        canPublish: Boolean = true,
+        canUpload: Boolean = true,
+        canManageAdmins: Boolean = false
     ) {
         viewModelScope.launch {
             try {
                 repository.addAdminByEmail(
                     email = email,
                     name = name,
+                    password = password,
+                    role = role,
                     canAdd = canAdd,
                     canEdit = canEdit,
                     canDelete = canDelete,
@@ -438,7 +478,7 @@ class ApexStoreViewModel(application: Application) : AndroidViewModel(applicatio
                     canUpload = canUpload,
                     canManageAdmins = canManageAdmins
                 )
-                _snackbarEvent.emit("تمت إضافة المشرف بنجاح وتعيين الصلاحيات")
+                _snackbarEvent.emit("تمت إضافة المشرف بنجاح وتعيين الصلاحيات وكلمة المرور")
             } catch (e: Exception) {
                 _snackbarEvent.emit("فشل إضافة المشرف: ${e.localizedMessage}")
             }

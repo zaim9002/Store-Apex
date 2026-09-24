@@ -23,11 +23,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Save
@@ -62,6 +66,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
@@ -70,6 +75,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.data.model.AppEntity
 import com.example.data.model.AppType
 import com.example.data.model.CategoryData
@@ -120,6 +127,9 @@ fun AddEditAppScreen(
     var screenshots by remember { mutableStateOf(app.screenshots) }
     var apkUrl by remember { mutableStateOf(app.apkUrl) }
     var xapkUrl by remember { mutableStateOf(app.xapkUrl) }
+    var fileUrl by remember { mutableStateOf(app.fileUrl) }
+    var fileFormat by remember { mutableStateOf(app.fileFormat.ifBlank { if (type == "GAME") "XAPK" else "APK" }) }
+    var websiteUrl by remember { mutableStateOf(app.websiteUrl) }
     var downloadSource by remember { mutableStateOf(app.downloadSource) }
     var published by remember { mutableStateOf(if (app.name.isBlank()) true else app.published) }
     var isFeatured by remember { mutableStateOf(app.isFeatured) }
@@ -141,22 +151,56 @@ fun AddEditAppScreen(
             viewModel.saveIconFile(effectiveAppId, iconUri) { savedFile ->
                 iconUrl = savedFile.absolutePath
             }
-        }
-    }
-
-    // Photo Picker launcher for Screenshots (Google Play Policy Zero-Permission)
-    val screenshotPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        uri?.let { shotUri ->
-            val count = screenshots.split(",").filter { it.isNotBlank() }.size
-            viewModel.saveScreenshotFile(effectiveAppId, shotUri, count + 1) { savedFile ->
-                screenshots = if (screenshots.isBlank()) savedFile.absolutePath else "$screenshots,${savedFile.absolutePath}"
+            viewModel.uploadImageToFirebase(effectiveAppId, "icon", iconUri) { uploadedUrl ->
+                iconUrl = uploadedUrl
             }
         }
     }
 
-    // File picker launcher for APK and XAPK files
+    // Photo Picker launcher for Banner
+    val bannerPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let { bannerUri ->
+            viewModel.uploadImageToFirebase(effectiveAppId, "banner", bannerUri) { uploadedUrl ->
+                bannerUrl = uploadedUrl
+            }
+        }
+    }
+
+    // Multiple Screenshots Picker Launcher (Supports Multi-Selection up to 10 images)
+    val multipleScreenshotPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 10)
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            for (shotUri in uris) {
+                viewModel.uploadImageToFirebase(effectiveAppId, "screenshots", shotUri) { uploadedUrl ->
+                    val currentList = screenshots.split(",").map { it.trim() }.filter { it.isNotBlank() }.toMutableList()
+                    if (!currentList.contains(uploadedUrl)) {
+                        currentList.add(uploadedUrl)
+                        screenshots = currentList.joinToString(",")
+                    }
+                }
+            }
+        }
+    }
+
+    // Single Screenshot Picker fallback
+    val screenshotPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let { shotUri ->
+            viewModel.uploadImageToFirebase(effectiveAppId, "screenshots", shotUri) { uploadedUrl ->
+                val currentList = screenshots.split(",").map { it.trim() }.filter { it.isNotBlank() }.toMutableList()
+                if (!currentList.contains(uploadedUrl)) {
+                    currentList.add(uploadedUrl)
+                    screenshots = currentList.joinToString(",")
+                }
+            }
+        }
+    }
+
+    // File picker launcher for APK and XAPK files with Firebase Storage upload
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -221,8 +265,8 @@ fun AddEditAppScreen(
                 isExtractingApk = false
 
                 val isXapk = displayName.endsWith(".xapk", ignoreCase = true)
-                // Save package file directly into app storage
-                viewModel.savePackageFile(effectiveAppId, fileUri, isXapk) { localPackageFile, bytesWritten ->
+                // Save package file directly into app local storage cache
+                viewModel.savePackageFile(effectiveAppId, fileUri, isXapk) { localPackageFile, _ ->
                     if (isXapk) {
                         xapkUrl = localPackageFile.absolutePath
                     } else {
@@ -230,13 +274,16 @@ fun AddEditAppScreen(
                     }
                 }
 
-                // Trigger real-time upload progress simulation
-                viewModel.simulateUpload(displayName, fileSize) { generatedUrl ->
+                // Trigger real Firebase Storage upload with live progress tracking
+                viewModel.uploadPackageToFirebase(effectiveAppId, displayName, fileUri, isXapk, fileSize) { uploadedUrl ->
                     if (isXapk) {
-                        if (xapkUrl.isBlank()) xapkUrl = generatedUrl
+                        xapkUrl = uploadedUrl
+                        fileFormat = "XAPK"
                     } else {
-                        if (apkUrl.isBlank()) apkUrl = generatedUrl
+                        apkUrl = uploadedUrl
+                        fileFormat = "APK"
                     }
+                    fileUrl = uploadedUrl
                 }
             }
         }
@@ -309,11 +356,15 @@ fun AddEditAppScreen(
                             iconUrl = iconUrl.ifBlank { "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150" },
                             bannerUrl = bannerUrl.ifBlank { "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800" },
                             screenshots = screenshots,
-                            apkUrl = apkUrl.ifBlank { "https://storage.apexstore.com/packages/${UUID.randomUUID()}.apk" },
+                            apkUrl = apkUrl.ifBlank { fileUrl },
                             xapkUrl = xapkUrl,
+                            fileUrl = fileUrl.ifBlank { if (type == "GAME" && xapkUrl.isNotBlank()) xapkUrl else apkUrl },
+                            fileFormat = if (type == "GAME" && (xapkUrl.isNotBlank() || fileFormat == "XAPK")) "XAPK" else "APK",
+                            websiteUrl = websiteUrl,
                             downloadSource = DownloadSource.UPLOAD.name,
                             published = published,
                             isFeatured = isFeatured,
+                            status = "ACTIVE",
                             updatedAt = System.currentTimeMillis()
                         )
                         viewModel.saveApp(toSave)
@@ -521,7 +572,7 @@ fun AddEditAppScreen(
                         FormTextField(
                             value = apkUrl,
                             onValueChange = { apkUrl = it },
-                            label = "رابط ملف APK المباشر",
+                            label = "رابط ملف APK المباشر (أو مسار الحزمة المرفوعة)",
                             isLtr = true
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -529,6 +580,13 @@ fun AddEditAppScreen(
                             value = xapkUrl,
                             onValueChange = { xapkUrl = it },
                             label = "رابط ملف XAPK المباشر (اختياري للألعاب الضخمة)",
+                            isLtr = true
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        FormTextField(
+                            value = websiteUrl,
+                            onValueChange = { websiteUrl = it },
+                            label = "رابط الموقع الرسمي للتطبيق أو الناشر (اختياري)",
                             isLtr = true
                         )
                     }
@@ -667,19 +725,11 @@ fun AddEditAppScreen(
                         }
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        FormTextField(
-                            value = bannerUrl,
-                            onValueChange = { bannerUrl = it },
-                            label = "رابط بانر العرض المميز (Banner URL)",
-                            isLtr = true
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Screenshot Row with Photo Picker Button
+                        // Banner Row with Photo Picker Button
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Button(
                                 onClick = {
-                                    screenshotPickerLauncher.launch(
+                                    bannerPickerLauncher.launch(
                                         androidx.activity.result.PickVisualMediaRequest(
                                             ActivityResultContracts.PickVisualMedia.ImageOnly
                                         )
@@ -690,17 +740,152 @@ fun AddEditAppScreen(
                                 border = androidx.compose.foundation.BorderStroke(1.dp, ApexBorder),
                                 modifier = Modifier.height(38.dp)
                             ) {
-                                Text(text = "📸 إضافة لقطة", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(text = "🖼️ رفع بانر", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
 
                             FormTextField(
-                                value = screenshots,
-                                onValueChange = { screenshots = it },
-                                label = "لقطات الشاشة (مسارات أو روابط)",
+                                value = bannerUrl,
+                                onValueChange = { bannerUrl = it },
+                                label = "رابط بانر العرض المميز (Banner URL)",
                                 isLtr = true,
                                 modifier = Modifier.weight(1f)
                             )
                         }
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Screenshots Section Header & Action Buttons
+                        val currentScreenshotList = remember(screenshots) {
+                            screenshots.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "لقطات الشاشة (${currentScreenshotList.size} صور مختارة)",
+                                color = ApexTextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = {
+                                    multipleScreenshotPickerLauncher.launch(
+                                        androidx.activity.result.PickVisualMediaRequest(
+                                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                                        )
+                                    )
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = ApexPrimary, contentColor = ApexBackground),
+                                modifier = Modifier.weight(1f).height(40.dp)
+                            ) {
+                                Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(text = "اختيار عدة لقطات (Multi-Select)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            Button(
+                                onClick = {
+                                    screenshotPickerLauncher.launch(
+                                        androidx.activity.result.PickVisualMediaRequest(
+                                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                                        )
+                                    )
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = ApexSurfaceVariant, contentColor = ApexTextPrimary),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, ApexBorder),
+                                modifier = Modifier.height(40.dp)
+                            ) {
+                                Text(text = "➕ إضافة صورة", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        // Screenshots Thumbnail Preview Row with Delete Buttons
+                        if (currentScreenshotList.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            LazyRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                itemsIndexed(currentScreenshotList) { index, shotUrl ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(width = 96.dp, height = 144.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(ApexSurfaceVariant)
+                                            .border(1.dp, ApexBorder, RoundedCornerShape(10.dp))
+                                    ) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(LocalContext.current)
+                                                .data(shotUrl)
+                                                .crossfade(true)
+                                                .build(),
+                                            contentDescription = "لقطة شاشة ${index + 1}",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+
+                                        // Delete Button Badge (X)
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(4.dp)
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(Color.Red.copy(alpha = 0.85f))
+                                                .clickable {
+                                                    val updated = currentScreenshotList.toMutableList()
+                                                    if (index < updated.size) {
+                                                        updated.removeAt(index)
+                                                        screenshots = updated.joinToString(",")
+                                                    }
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "حذف اللقطة",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+
+                                        // Index label
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomStart)
+                                                .padding(4.dp)
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(Color.Black.copy(alpha = 0.7f))
+                                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = "${index + 1}",
+                                                color = Color.White,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        FormTextField(
+                            value = screenshots,
+                            onValueChange = { screenshots = it },
+                            label = "لقطات الشاشة (مسارات أو روابط مفصولة بفواصل)",
+                            isLtr = true
+                        )
                     }
                 }
             }

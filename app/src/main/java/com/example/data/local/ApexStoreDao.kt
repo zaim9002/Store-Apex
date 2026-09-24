@@ -73,6 +73,9 @@ interface AppDao {
     @Query("UPDATE apps SET downloadCount = downloadCount + 1 WHERE id = :id")
     suspend fun incrementDownloadCount(id: String)
 
+    @Query("SELECT * FROM apps")
+    suspend fun getAllAppsDirect(): List<AppEntity>
+
     @Query("SELECT COUNT(*) FROM apps")
     fun getTotalAppsCount(): Flow<Int>
 
@@ -135,6 +138,9 @@ interface UserDao {
 
     @Query("SELECT COUNT(*) FROM users")
     fun getTotalUsersCount(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM users")
+    suspend fun getUsersCountDirect(): Int
 
     @Query("DELETE FROM users WHERE email != 'zaim9002@gmail.com'")
     suspend fun purgeDemoUsers()

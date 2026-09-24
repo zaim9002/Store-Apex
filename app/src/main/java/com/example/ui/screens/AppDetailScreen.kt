@@ -66,6 +66,9 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.data.model.AppEntity
 import com.example.data.model.DownloadStatus
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.LinearProgressIndicator
+import com.example.util.PackageInstallerHelper
 import com.example.ui.ApexStoreViewModel
 import com.example.ui.theme.ApexAmber
 import com.example.ui.theme.ApexBackground
@@ -88,6 +91,7 @@ fun AppDetailScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val favorites by viewModel.favorites.collectAsState()
     val downloads by viewModel.downloads.collectAsState()
     val isFavorite = favorites.any { it.id == app.id }
@@ -138,77 +142,163 @@ fun AppDetailScreen(
             )
         },
         bottomBar = {
-            // Persistent Bottom Download Bar
+            // Persistent Bottom Download Bar with System Navigation Padding
             Surface(
                 color = ApexSurface,
-                tonalElevation = 10.dp,
+                tonalElevation = 8.dp,
+                shadowElevation = 8.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(width = 1.dp, color = ApexBorder.copy(alpha = 0.4f))
+                    .border(width = 1.dp, color = ApexBorder.copy(alpha = 0.5f))
+                    .navigationBarsPadding()
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    // APK Download Button
-                    if (app.apkUrl.isNotBlank() || app.xapkUrl.isBlank()) {
-                        Button(
-                            onClick = { viewModel.startDownload(app, "APK") },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isCompleted) ApexTertiary else ApexPrimary,
-                                contentColor = ApexBackground
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(50.dp)
-                                .testTag("detail_download_apk_button")
-                        ) {
-                            if (isDownloading) {
-                                CircularProgressIndicator(strokeWidth = 2.5.dp, color = ApexBackground, modifier = Modifier.size(20.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "جارٍ التحميل...", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                            } else if (isCompleted) {
-                                Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(text = "تم التثبيت ✓", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
-                            } else {
-                                Icon(imageVector = Icons.Default.Download, contentDescription = null, modifier = Modifier.size(20.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(text = "تحميل APK ⬇", fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
-                                    Text(text = app.size, fontSize = 10.sp, color = ApexBackground.copy(alpha = 0.8f))
+                    when {
+                        isDownloading -> {
+                            val pFloat = downloadItem?.progress ?: 0.1f
+                            val pPercent = (pFloat * 100).toInt()
+                            val speed = downloadItem?.speed ?: "4.2 MB/s"
+
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        CircularProgressIndicator(
+                                            strokeWidth = 2.5.dp,
+                                            color = ApexPrimary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "جاري تحميل ${downloadItem?.fileType ?: "الحزمة"} للجهاز...",
+                                            color = ApexTextPrimary,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        )
+                                    }
+                                    Text(
+                                        text = "$pPercent% • $speed",
+                                        color = ApexPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
                                 }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                LinearProgressIndicator(
+                                    progress = { pFloat },
+                                    color = ApexPrimary,
+                                    trackColor = ApexSurfaceVariant,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(6.dp)
+                                        .clip(RoundedCornerShape(3.dp))
+                                )
                             }
                         }
-                    }
 
-                    // XAPK Download Button (if available)
-                    if (app.xapkUrl.isNotBlank()) {
-                        Button(
-                            onClick = { viewModel.startDownload(app, "XAPK") },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = ApexSecondary,
-                                contentColor = Color.White
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(50.dp)
-                                .testTag("detail_download_xapk_button")
-                        ) {
-                            if (isDownloading) {
-                                CircularProgressIndicator(strokeWidth = 2.5.dp, color = Color.White, modifier = Modifier.size(20.dp))
+                        isCompleted -> {
+                            Button(
+                                onClick = {
+                                    if (downloadItem != null) {
+                                        PackageInstallerHelper.installPackage(context, downloadItem)
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = ApexTertiary,
+                                    contentColor = Color.White
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                                    .testTag("detail_install_package_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = Color.White
+                                )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "جارٍ التحميل...", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                            } else {
-                                Icon(imageVector = Icons.Default.Download, contentDescription = null, modifier = Modifier.size(20.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(text = "تحميل XAPK ⬇", fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
-                                    Text(text = app.size, fontSize = 10.sp, color = Color.White.copy(alpha = 0.85f))
+                                Text(
+                                    text = "تم التحميل بنجاح - تثبيت الحزمة الآن ⚡",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+
+                        else -> {
+                            val hasApk = app.apkUrl.isNotBlank() || app.xapkUrl.isBlank()
+                            val hasXapk = app.xapkUrl.isNotBlank()
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                if (hasApk) {
+                                    Button(
+                                        onClick = { viewModel.startDownload(app, "APK") },
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = ApexPrimary,
+                                            contentColor = ApexBackground
+                                        ),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(52.dp)
+                                            .testTag("detail_download_apk_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Download,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "تحميل APK (${app.size})",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+
+                                if (hasXapk) {
+                                    Button(
+                                        onClick = { viewModel.startDownload(app, "XAPK") },
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = ApexSecondary,
+                                            contentColor = Color.White
+                                        ),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(52.dp)
+                                            .testTag("detail_download_xapk_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Download,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "تحميل XAPK (${app.size})",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
                             }
                         }

@@ -148,10 +148,11 @@ fun AccountScreen(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     // Role Badge
-                    val (roleColor, roleText) = when (currentUser.role) {
-                        UserRole.SUPER_ADMIN.name -> ApexAmber to "المدير التنفيذي (Super Admin)"
-                        UserRole.ADMIN.name -> ApexSecondary to "مشرف متجر (Admin)"
-                        else -> ApexTertiary to "مستخدم عادي (User)"
+                    val (roleColor, roleText) = when {
+                        currentUser.isSuperAdmin -> ApexAmber to "المدير العام (Super Admin)"
+                        currentUser.isAdmin -> ApexSecondary to "مشرف متجر (Admin)"
+                        currentUser.isModerator -> ApexTertiary to "مشرف محتوى (Moderator)"
+                        else -> ApexPrimary to "مستخدم عادي (User)"
                     }
 
                     Box(
@@ -173,7 +174,7 @@ fun AccountScreen(
 
         // Admin Dashboard or Login Card
         Spacer(modifier = Modifier.height(16.dp))
-        if (currentUser.role != UserRole.USER.name) {
+        if (currentUser.canAccessAdminPanel) {
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = ApexSecondary.copy(alpha = 0.12f)),

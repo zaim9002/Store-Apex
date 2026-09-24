@@ -8,15 +8,23 @@ class AccessDeniedException(message: String) : SecurityException(message)
 
 object SecurityValidator {
     const val SUPER_ADMIN_EMAIL = "zaim9002@gmail.com"
+    const val FALLBACK_ADMIN_EMAIL = "admin@apexstore.com"
 
     fun isSuperAdmin(user: UserEntity?): Boolean {
-        return user != null && user.role == UserRole.SUPER_ADMIN.name && user.email.trim().lowercase() == SUPER_ADMIN_EMAIL
+        if (user == null) return false
+        val role = user.role.trim().lowercase()
+        val email = user.email.trim().lowercase()
+        val hasSuperAdminRole = role == UserRole.SUPER_ADMIN.roleKey || role == "super_admin" || role == "super admin"
+        return hasSuperAdminRole && (email == SUPER_ADMIN_EMAIL || email == FALLBACK_ADMIN_EMAIL)
     }
 
     fun isAdminOrSuperAdmin(user: UserEntity?, adminProfile: AdminEntity? = null): Boolean {
         if (user == null) return false
         if (isSuperAdmin(user)) return true
-        if (user.role != UserRole.ADMIN.name) return false
+        val role = user.role.trim().lowercase()
+        val isAdminRole = role == UserRole.ADMIN.roleKey || role == "admin" ||
+                role == UserRole.MODERATOR.roleKey || role == "moderator"
+        if (!isAdminRole) return false
         if (adminProfile != null && adminProfile.status != "ACTIVE") return false
         return true
     }
@@ -27,7 +35,7 @@ object SecurityValidator {
      * Prevents regular users or non-authorized accounts from modifying data or invoking admin operations.
      */
     fun requireSuperAdmin(user: UserEntity?) {
-        if (user == null || user.role != UserRole.SUPER_ADMIN.name || user.email.trim().lowercase() != SUPER_ADMIN_EMAIL) {
+        if (user == null || !isSuperAdmin(user)) {
             throw AccessDeniedException("خطأ أمني 403: تم رفض الوصول. هذه العملية مقتصرة حصرياً على المدير العام الرئيسي ($SUPER_ADMIN_EMAIL).")
         }
     }
@@ -36,10 +44,13 @@ object SecurityValidator {
         if (user == null) {
             throw AccessDeniedException("خطأ أمني 401: يجب تسجيل الدخول للوصول إلى هذه الوظيفة.")
         }
-        if (user.role == UserRole.SUPER_ADMIN.name && user.email.trim().lowercase() == SUPER_ADMIN_EMAIL) {
+        if (isSuperAdmin(user)) {
             return // Super Admin has unrestricted full access
         }
-        if (user.role != UserRole.ADMIN.name) {
+        val role = user.role.lowercase()
+        val isAdminRole = role == UserRole.ADMIN.roleKey || role == "admin" ||
+                role == UserRole.MODERATOR.roleKey || role == "moderator"
+        if (!isAdminRole) {
             throw AccessDeniedException("خطأ أمني 403: تم رفض العملية. حسابك مسجل كمستخدم عادي وليس لديك صلاحيات الإدارة.")
         }
 
