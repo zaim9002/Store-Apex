@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>APEX STORE - لوحة تحكم الويب لإدارة التطبيقات والألعاب</title>
+  <title>APEX STORE - لوحة تحكم إدارة ونشر التطبيقات والألعاب</title>
   
-  <!-- Tailwind CSS & Fonts -->
+  <!-- Tailwind CSS & Icons & Fonts -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -46,21 +46,10 @@
       background-color: #090D16;
       color: #F3F4F6;
     }
-    /* Custom Scrollbar */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #090D16;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #233252;
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #4F46E5;
-    }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #090D16; }
+    ::-webkit-scrollbar-thumb { background: #233252; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #4F46E5; }
     .glass {
       background: rgba(19, 27, 46, 0.85);
       backdrop-filter: blur(12px);
@@ -89,12 +78,27 @@
         </div>
       </div>
 
-      <!-- Live Connection Status & Actions -->
-      <div class="flex items-center gap-3">
+      <!-- Live Connection Status & User & Actions -->
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- Auth Badge -->
+        <div id="authStatusBadge" class="hidden items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold">
+          <i class="fa-solid fa-user-shield text-indigo-400"></i>
+          <span id="authUserEmail">مشرف معتمد</span>
+        </div>
+
+        <!-- Connection Status -->
         <div id="connectionStatus" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>متصل بـ Firebase (Real-time)</span>
+          <span>متصل بـ Firebase</span>
         </div>
+
+        <!-- Help Rules Button -->
+        <button onclick="openRulesModal()" class="px-3 py-2 rounded-xl bg-apexDark hover:bg-apexCardLight border border-apexBorder text-amber-400 text-xs font-bold flex items-center gap-1.5 transition-all" title="قواعد أمان Firebase">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>قواعد Firebase</span>
+        </button>
+
+        <!-- Add App Button -->
         <button onclick="openModal()" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-apexPrimary to-apexAccent hover:from-indigo-600 hover:to-purple-600 text-white font-bold text-sm shadow-lg neon-glow flex items-center gap-2 transition-all">
           <i class="fa-solid fa-plus"></i>
           <span>إضافة تطبيق أو لعبة</span>
@@ -103,12 +107,29 @@
     </div>
   </header>
 
+  <!-- Notice Banner for Firebase Rules if Permission Denied -->
+  <div id="permissionWarningBanner" class="hidden max-w-7xl mx-auto w-full px-6 pt-4">
+    <div class="bg-amber-950/80 border-2 border-amber-500/60 rounded-2xl p-4 text-amber-200 flex flex-wrap items-center justify-between gap-3 shadow-xl">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl shrink-0">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div>
+          <h4 class="font-bold text-white text-sm">تنبيه: قواعد الأمان في Firebase تحتاج إلى تفعيل</h4>
+          <p class="text-xs text-amber-300/90 mt-0.5">Firebase يرفض الكتابة حالياً بسبب قيود الأمان (Permission Denied). يرجى فتح تبويب القواعد وتفعيل السماح بالكتابة.</p>
+        </div>
+      </div>
+      <button onclick="openRulesModal()" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold text-xs transition-all shadow-md">
+        حل المشكلة الآن (عرض القواعد)
+      </button>
+    </div>
+  </div>
+
   <!-- Main Content -->
   <main class="max-w-7xl mx-auto w-full p-6 flex-1 space-y-6">
 
     <!-- Quick Stats Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <!-- Total Apps -->
       <div class="glass p-5 rounded-2xl flex items-center justify-between border-t-2 border-t-apexPrimary">
         <div>
           <p class="text-xs text-gray-400 font-medium">إجمالي التطبيقات</p>
@@ -119,7 +140,6 @@
         </div>
       </div>
 
-      <!-- Total Games -->
       <div class="glass p-5 rounded-2xl flex items-center justify-between border-t-2 border-t-apexSecondary">
         <div>
           <p class="text-xs text-gray-400 font-medium">إجمالي الألعاب</p>
@@ -130,7 +150,6 @@
         </div>
       </div>
 
-      <!-- Featured Items -->
       <div class="glass p-5 rounded-2xl flex items-center justify-between border-t-2 border-t-apexWarning">
         <div>
           <p class="text-xs text-gray-400 font-medium">العناصر المميزة (Featured)</p>
@@ -141,7 +160,6 @@
         </div>
       </div>
 
-      <!-- Real-time Status -->
       <div class="glass p-5 rounded-2xl flex items-center justify-between border-t-2 border-t-apexSuccess">
         <div>
           <p class="text-xs text-gray-400 font-medium">المزامنة مع تطبيق أندرويد</p>
@@ -158,7 +176,6 @@
     <!-- Filters & Search Toolbar -->
     <div class="glass p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4">
       <div class="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
-        <!-- Search -->
         <div class="relative flex-1 min-w-[200px]">
           <i class="fa-solid fa-magnifying-glass absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
           <input type="text" id="searchInput" placeholder="ابحث بالاسم، الحزمة، المطور أو القسم..." 
@@ -166,7 +183,6 @@
                  oninput="filterApps()">
         </div>
 
-        <!-- Filter Type -->
         <select id="filterType" onchange="filterApps()" 
                 class="bg-apexDark border border-apexBorder rounded-xl px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-apexPrimary">
           <option value="ALL">جميع الأنواع (تطبيقات وألعاب)</option>
@@ -174,24 +190,25 @@
           <option value="GAME">ألعاب فقط</option>
         </select>
 
-        <!-- Filter Category -->
         <select id="filterCategory" onchange="filterApps()" 
                 class="bg-apexDark border border-apexBorder rounded-xl px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-apexPrimary">
           <option value="ALL">جميع الأقسام والتصنيفات</option>
-          <!-- Filled dynamically -->
         </select>
       </div>
 
       <div class="flex items-center gap-2">
+        <button onclick="testFirebaseWrite()" title="اختبار فحص الاتصال والكتابة في Firebase" class="px-3 py-2 rounded-xl bg-apexDark hover:bg-apexCardLight border border-apexBorder text-xs text-indigo-300 hover:text-white flex items-center gap-1.5 transition-all">
+          <i class="fa-solid fa-vial"></i>
+          <span>اختبار الاتصال</span>
+        </button>
         <button onclick="refreshData()" title="تحديث القائمة" class="p-2.5 rounded-xl bg-apexDark hover:bg-apexCardLight border border-apexBorder text-gray-300 hover:text-white transition-all">
           <i class="fa-solid fa-rotate-right"></i>
         </button>
       </div>
     </div>
 
-    <!-- Items Grid / Table -->
+    <!-- Items Grid Container -->
     <div id="itemsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-      <!-- Cards rendered via JS -->
       <div class="col-span-full text-center py-16 text-gray-400">
         <i class="fa-solid fa-circle-notch fa-spin text-3xl text-apexPrimary mb-3"></i>
         <p>جاري تحميل التطبيقات والألعاب من Firestore...</p>
@@ -200,14 +217,14 @@
 
   </main>
 
-  <!-- Add/Edit Modal -->
+  <!-- Add/Edit Modal Form -->
   <div id="appModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 overflow-y-auto">
     <div class="bg-apexCard border border-apexBorder rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-fadeIn">
       
       <!-- Modal Header -->
       <div class="px-6 py-4 border-b border-apexBorder flex items-center justify-between bg-apexCardLight/50">
         <div class="flex items-center gap-3">
-          <div id="modalIconHeader" class="w-10 h-10 rounded-xl bg-apexPrimary/20 text-apexPrimary flex items-center justify-center text-lg">
+          <div class="w-10 h-10 rounded-xl bg-apexPrimary/20 text-apexPrimary flex items-center justify-center text-lg">
             <i class="fa-solid fa-plus"></i>
           </div>
           <div>
@@ -215,18 +232,23 @@
             <p class="text-xs text-gray-400">سيتم النشر والحفظ مباشرة في مجموعة apps بقاعدة بيانات Firebase</p>
           </div>
         </div>
-        <button onclick="closeModal()" class="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-apexBorder/50 transition-colors">
-          <i class="fa-solid fa-xmark text-lg"></i>
-        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="fillSampleData()" class="px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold transition-all flex items-center gap-1.5" title="تعبئة نموذج تجريبي جاهز للاختبار">
+            <i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
+            <span>تعبئة نموذج جاهز</span>
+          </button>
+          <button onclick="closeModal()" class="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-apexBorder/50 transition-colors">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
       </div>
 
-      <!-- Modal Body (Form) -->
+      <!-- Form -->
       <form id="appForm" onsubmit="saveApp(event)" class="p-6 overflow-y-auto space-y-6 flex-1 text-sm">
         <input type="hidden" id="editAppId">
 
         <!-- Type & Category Row -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <!-- Type -->
           <div>
             <label class="block text-xs font-semibold text-gray-300 mb-1.5">نوع المحتوى <span class="text-rose-500">*</span></label>
             <select id="formType" required onchange="onTypeChange()" class="w-full bg-apexDark border border-apexBorder rounded-xl px-3.5 py-2.5 text-gray-100 focus:outline-none focus:border-apexPrimary">
@@ -235,15 +257,12 @@
             </select>
           </div>
 
-          <!-- Main Category Dropdown -->
           <div>
             <label class="block text-xs font-semibold text-gray-300 mb-1.5">القسم الرئيسي <span class="text-rose-500">*</span></label>
             <select id="formCategory" onchange="onCategorySelectChange()" class="w-full bg-apexDark border border-apexBorder rounded-xl px-3.5 py-2.5 text-gray-100 focus:outline-none focus:border-apexPrimary">
-              <!-- Dynamically populated -->
             </select>
           </div>
 
-          <!-- Custom Category or Subcategory -->
           <div>
             <label class="block text-xs font-semibold text-gray-300 mb-1.5">قسم مخصص أو تصنيف فرعي</label>
             <input type="text" id="formCustomCategory" placeholder="مثال: ألعاب أكشن، تواصل اجتماعي، أدوات..." 
@@ -251,23 +270,20 @@
           </div>
         </div>
 
-        <!-- Name & Package & Developer Row -->
+        <!-- Name & Package & Developer -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <!-- Name -->
           <div>
             <label class="block text-xs font-semibold text-gray-300 mb-1.5">اسم التطبيق / اللعبة <span class="text-rose-500">*</span></label>
             <input type="text" id="formName" required placeholder="مثال: Apex Launcher أو Cyber Strike" 
                    class="w-full bg-apexDark border border-apexBorder rounded-xl px-3.5 py-2.5 text-gray-100 focus:outline-none focus:border-apexPrimary">
           </div>
 
-          <!-- Package Name -->
           <div>
             <label class="block text-xs font-semibold text-gray-300 mb-1.5">اسم الحزمة (Package Name) <span class="text-rose-500">*</span></label>
             <input type="text" id="formPackageName" required placeholder="مثال: com.developer.game" 
                    class="w-full bg-apexDark border border-apexBorder rounded-xl px-3.5 py-2.5 text-gray-100 focus:outline-none focus:border-apexPrimary">
           </div>
 
-          <!-- Developer -->
           <div>
             <label class="block text-xs font-semibold text-gray-300 mb-1.5">اسم المطور / الشركة</label>
             <input type="text" id="formDeveloper" placeholder="مثال: APEX Studios" 
@@ -275,7 +291,7 @@
           </div>
         </div>
 
-        <!-- Version, Size, Android Version, Age Rating -->
+        <!-- Version, Size, Android, Age Rating -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div>
             <label class="block text-xs font-semibold text-gray-300 mb-1.5">رقم الإصدار</label>
@@ -307,7 +323,7 @@
           </div>
         </div>
 
-        <!-- Download URL & File Format -->
+        <!-- Download URL & Format -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="md:col-span-2">
             <label class="block text-xs font-semibold text-gray-300 mb-1.5">رابط التحميل المباشر (APK / XAPK Download URL) <span class="text-rose-500">*</span></label>
@@ -316,7 +332,6 @@
                      class="w-full bg-apexDark border border-apexBorder rounded-xl pr-3.5 pl-10 py-2.5 text-gray-100 focus:outline-none focus:border-apexPrimary font-mono text-xs">
               <i class="fa-solid fa-download absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
             </div>
-            <p class="text-[11px] text-gray-400 mt-1">يمكنك استخدام رابط مباشر من Firebase Storage أو Google Drive أو أي خادم ملفات مباشر.</p>
           </div>
 
           <div>
@@ -330,7 +345,6 @@
 
         <!-- Icon URL & Banner URL -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Icon URL -->
           <div>
             <label class="block text-xs font-semibold text-gray-300 mb-1.5">رابط الأيقونة (Icon URL) <span class="text-rose-500">*</span></label>
             <div class="flex gap-2">
@@ -342,7 +356,6 @@
             </div>
           </div>
 
-          <!-- Banner URL -->
           <div>
             <label class="block text-xs font-semibold text-gray-300 mb-1.5">رابط صورة الغلاف / البانر (Banner URL)</label>
             <div class="flex gap-2">
@@ -355,9 +368,9 @@
           </div>
         </div>
 
-        <!-- Screenshots URLs -->
+        <!-- Screenshots -->
         <div>
-          <label class="block text-xs font-semibold text-gray-300 mb-1.5">روابط صور لقطات الشاشة (Screenshots)</label>
+          <label class="block text-xs font-semibold text-gray-300 mb-1.5">روابط لقطات الشاشة (Screenshots)</label>
           <textarea id="formScreenshots" rows="2" placeholder="ضع رابط كل صورة في سطر منفصل أو افصل بينها بفواصل..." oninput="previewScreenshots(this.value)"
                     class="w-full bg-apexDark border border-apexBorder rounded-xl px-3.5 py-2.5 text-gray-100 focus:outline-none focus:border-apexPrimary font-mono text-xs"></textarea>
           <div id="screenshotsPreviewContainer" class="flex gap-2 overflow-x-auto mt-2 py-1 min-h-[50px] empty:hidden"></div>
@@ -366,7 +379,7 @@
         <!-- Descriptions -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label class="block text-xs font-semibold text-gray-300 mb-1.5">وصف مختصر (يظهر في البطاقة)</label>
+            <label class="block text-xs font-semibold text-gray-300 mb-1.5">وصف مختصر</label>
             <input type="text" id="formShortDescription" placeholder="أقوى ألعاب القتال التكتيكي بجرافيك عالي" 
                    class="w-full bg-apexDark border border-apexBorder rounded-xl px-3.5 py-2.5 text-gray-100 focus:outline-none focus:border-apexPrimary">
           </div>
@@ -404,10 +417,10 @@
           </div>
         </div>
 
-        <!-- Switches: Published & Featured -->
+        <!-- Switches -->
         <div class="glass p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4">
           <label class="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" id="formPublished" checked class="w-4 h-4 text-apexPrimary rounded bg-apexDark border-apexBorder focus:ring-0">
+            <input type="checkbox" id="formPublished" checked class="w-4 h-4 text-apexPrimary rounded bg-apexDark border-apexBorder">
             <div>
               <span class="text-sm font-bold text-white block">نشر فوري في المتجر (Published)</span>
               <span class="text-xs text-gray-400">يظهر فوراً لجميع مستخدمي التطبيق</span>
@@ -415,7 +428,7 @@
           </label>
 
           <label class="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" id="formFeatured" class="w-4 h-4 text-apexWarning rounded bg-apexDark border-apexBorder focus:ring-0">
+            <input type="checkbox" id="formFeatured" class="w-4 h-4 text-apexWarning rounded bg-apexDark border-apexBorder">
             <div>
               <span class="text-sm font-bold text-amber-400 block flex items-center gap-1.5">
                 <i class="fa-solid fa-star text-xs"></i> تمييز في الصفحة الرئيسية (Featured)
@@ -425,7 +438,7 @@
           </label>
         </div>
 
-        <!-- Modal Footer Actions -->
+        <!-- Footer Buttons -->
         <div class="pt-4 border-t border-apexBorder flex items-center justify-end gap-3">
           <button type="button" onclick="closeModal()" class="px-5 py-2.5 rounded-xl border border-apexBorder text-gray-300 hover:text-white hover:bg-apexCardLight text-sm font-semibold transition-all">
             إلغاء
@@ -440,7 +453,7 @@
     </div>
   </div>
 
-  <!-- Delete Confirm Dialog -->
+  <!-- Delete Modal -->
   <div id="deleteModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4">
     <div class="bg-apexCard border border-apexBorder rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
       <div class="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center text-2xl mx-auto">
@@ -457,15 +470,69 @@
     </div>
   </div>
 
-  <!-- Toast Notification -->
-  <div id="toast" class="fixed bottom-6 left-6 z-50 px-5 py-3 rounded-2xl bg-apexCard border border-apexBorder text-white text-sm font-semibold shadow-2xl transition-all transform translate-y-20 opacity-0 flex items-center gap-3">
-    <i id="toastIcon" class="fa-solid fa-check text-emerald-400"></i>
+  <!-- Firebase Security Rules Helper Modal -->
+  <div id="rulesModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-apexCard border border-apexBorder rounded-3xl w-full max-w-2xl p-6 space-y-5 shadow-2xl my-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-apexBorder">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">إعداد قواعد أمان Firebase Firestore</h3>
+            <p class="text-xs text-gray-400">للسماح للوحة التحكم وللتطبيق بنشر وعرض التطبيقات دون قيود أمنية</p>
+          </div>
+        </div>
+        <button onclick="closeRulesModal()" class="text-gray-400 hover:text-white p-2">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs leading-relaxed text-gray-300">
+        <p class="font-bold text-white">إذا ظهرت لك رسالة خطأ (Permission Denied أو Missing or insufficient permissions):</p>
+        <ol class="list-decimal list-inside space-y-1.5 text-gray-300">
+          <li>ادخل إلى <a href="https://console.firebase.google.com/project/apex-store-3126f/firestore/rules" target="_blank" class="text-indigo-400 underline font-semibold">Firebase Console > Firestore Database > Rules</a>.</li>
+          <li>استبدل القواعد الحالية بالقواعد المفتوحة التالية:</li>
+        </ol>
+
+        <div class="relative bg-apexDark border border-apexBorder rounded-xl p-4 font-mono text-emerald-400 text-xs text-left" dir="ltr">
+          <pre id="firestoreRulesCode">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}</pre>
+          <button onclick="copyRules()" class="absolute top-2 right-2 px-3 py-1.5 rounded-lg bg-apexCard border border-apexBorder text-gray-200 hover:text-white text-xs font-sans font-semibold flex items-center gap-1.5">
+            <i class="fa-solid fa-copy"></i>
+            <span>نسخ الكود</span>
+          </button>
+        </div>
+
+        <ol start="3" class="list-decimal list-inside space-y-1.5 text-gray-300">
+          <li>اضغط على زر <strong class="text-emerald-400">Publish (نشر)</strong> في Firebase Console.</li>
+          <li>ارجع إلى هذه الصفحة واضغط "حفظ ونشر" وسينجح النشر فوراً دون أي خطأ!</li>
+        </ol>
+      </div>
+
+      <div class="flex items-center justify-end pt-3 border-t border-apexBorder">
+        <button onclick="closeRulesModal()" class="px-5 py-2.5 rounded-xl bg-apexPrimary hover:bg-indigo-600 text-white text-xs font-bold transition-all">
+          فهمت، إغلاق
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 left-6 z-50 px-5 py-3.5 rounded-2xl bg-apexCard border border-apexBorder text-white text-xs sm:text-sm font-semibold shadow-2xl transition-all transform translate-y-20 opacity-0 flex items-center gap-3 max-w-md">
+    <i id="toastIcon" class="fa-solid fa-check text-emerald-400 text-base shrink-0"></i>
     <span id="toastMsg">تمت العملية بنجاح</span>
   </div>
 
-  <!-- Firebase Script Logic -->
+  <!-- JavaScript Logic -->
   <script>
-    // 1. Firebase Configuration from user
+    // 1. Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyDqIFEjpRXSXCYEXetb-okMAwgjbIZy9b4",
       authDomain: "apex-store-3126f.firebaseapp.com",
@@ -476,14 +543,31 @@
       measurementId: "G-YG4LVBV5DP"
     };
 
-    // Initialize Firebase
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
     const db = firebase.firestore();
+    const auth = firebase.auth();
     const appsCollection = db.collection('apps');
 
-    // Category Definitions matching Android App
+    // Automatically try Anonymous auth to satisfy Firebase rules if required
+    auth.onAuthStateChanged((user) => {
+      const badge = document.getElementById('authStatusBadge');
+      const emailText = document.getElementById('authUserEmail');
+      if (user) {
+        badge.classList.remove('hidden');
+        badge.classList.add('flex');
+        emailText.innerText = user.email || 'مشرف (جلسة موثقة)';
+      }
+    });
+
+    // Try auto anonymous signin if not signed in
+    if (!auth.currentUser) {
+      auth.signInAnonymously().catch(() => {
+        // Direct Firestore mode
+      });
+    }
+
     const appCategories = [
       { id: 'tools', name: 'أدوات (Tools)' },
       { id: 'social', name: 'تواصل اجتماعي (Social)' },
@@ -516,10 +600,8 @@
     let allApps = [];
     let appToDeleteId = null;
 
-    // Set today's date in form
     document.getElementById('formPublishDate').value = new Date().toISOString().split('T')[0];
 
-    // Populate Category Dropdowns
     function populateCategoryOptions() {
       const type = document.getElementById('formType').value;
       const select = document.getElementById('formCategory');
@@ -527,7 +609,6 @@
       
       select.innerHTML = list.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 
-      // Populate filter dropdown
       const filterSelect = document.getElementById('filterCategory');
       filterSelect.innerHTML = '<option value="ALL">جميع الأقسام والتصنيفات</option>' +
         '<optgroup label="الألعاب">' + gameCategories.map(c => `<option value="${c.id}">${c.name}</option>`).join('') + '</optgroup>' +
@@ -542,13 +623,11 @@
       const select = document.getElementById('formCategory');
       const customInput = document.getElementById('formCustomCategory');
       if (!customInput.value) {
-        // give a gentle helper suggestion based on selection
         const selectedText = select.options[select.selectedIndex].text.split('(')[0].trim();
         customInput.placeholder = `اختياري: تصنيف فرعي لـ ${selectedText}...`;
       }
     }
 
-    // Start Live Real-time Firestore Listener
     function startRealtimeSync() {
       appsCollection.onSnapshot((snapshot) => {
         allApps = [];
@@ -556,16 +635,21 @@
           allApps.push({ id: doc.id, ...doc.data() });
         });
 
-        // Sort by updatedAt or createdAt desc
         allApps.sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
 
         updateStats();
         renderCards(allApps);
         showConnectionStatus(true);
+        document.getElementById('permissionWarningBanner').classList.add('hidden');
       }, (error) => {
         console.error("Firestore sync error:", error);
         showConnectionStatus(false);
-        showToast("خطأ في الاتصال بقاعدة بيانات Firebase: " + error.message, true);
+        if (error.code === 'permission-denied' || (error.message && error.message.includes('permission'))) {
+          document.getElementById('permissionWarningBanner').classList.remove('hidden');
+          showToast("تنبيه: قواعد الأمان في Firebase تمنع القراءة/الكتابة (Permission Denied). اضغط على 'قواعد Firebase' في الأعلى لحلها.", true);
+        } else {
+          showToast("تنبيه في الاتصال بقاعدة بيانات Firebase: " + error.message, true);
+        }
       });
     }
 
@@ -573,10 +657,10 @@
       const statusEl = document.getElementById('connectionStatus');
       if (isOnline) {
         statusEl.className = "flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold";
-        statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>متصل بـ Firebase (Real-time)</span>`;
+        statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>متصل بـ Firebase</span>`;
       } else {
-        statusEl.className = "flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold";
-        statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span><span>انقطع الاتصال بـ Firebase</span>`;
+        statusEl.className = "flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold";
+        statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400"></span><span>تحقق من الاتصال / القواعد</span>`;
       }
     }
 
@@ -646,12 +730,10 @@
 
         return `
           <div class="glass rounded-2xl overflow-hidden border border-apexBorder hover:border-apexPrimary/50 transition-all flex flex-col group hover:shadow-xl">
-            <!-- Banner or Top Header -->
             <div class="h-28 bg-apexDark relative overflow-hidden flex items-center justify-center">
               ${bannerUrl ? `<img src="${bannerUrl}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.style.display='none'">` : ''}
               <div class="absolute inset-0 bg-gradient-to-t from-apexCard via-apexCard/40 to-transparent"></div>
               
-              <!-- Badges -->
               <div class="absolute top-2.5 right-2.5 flex items-center gap-1.5">
                 <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold ${isGame ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40'}">
                   ${isGame ? '<i class="fa-solid fa-gamepad ml-1"></i> لعبة' : '<i class="fa-solid fa-mobile ml-1"></i> تطبيق'}
@@ -659,13 +741,11 @@
                 ${isFeatured ? '<span class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40"><i class="fa-solid fa-star text-[9px] ml-1"></i> مميز</span>' : ''}
               </div>
 
-              <!-- Published switch indicator -->
               <div class="absolute top-2.5 left-2.5">
                 <span class="w-2.5 h-2.5 rounded-full ${isPublished ? 'bg-emerald-400' : 'bg-gray-500'} inline-block" title="${isPublished ? 'منشور في المتجر' : 'مسودة'}"></span>
               </div>
             </div>
 
-            <!-- Content Area -->
             <div class="p-4 flex-1 flex flex-col -mt-8 relative z-10">
               <div class="flex items-start gap-3">
                 <img src="${iconUrl}" class="w-14 h-14 rounded-2xl object-cover border-2 border-apexBorder shadow-lg bg-apexDark shrink-0" onerror="this.src='https://via.placeholder.com/80?text=APK'">
@@ -682,7 +762,6 @@
 
               ${app.shortDescription ? `<p class="text-xs text-gray-300 line-clamp-2 mt-3 leading-relaxed">${app.shortDescription}</p>` : ''}
 
-              <!-- Rating & Package Details -->
               <div class="flex items-center justify-between mt-4 pt-3 border-t border-apexBorder text-xs text-gray-400">
                 <div class="flex items-center gap-1 text-amber-400 font-bold">
                   <i class="fa-solid fa-star text-[10px]"></i>
@@ -693,7 +772,6 @@
                 </div>
               </div>
 
-              <!-- Action Buttons -->
               <div class="flex items-center gap-2 mt-4 pt-2">
                 <button onclick="editApp('${app.id}')" class="flex-1 py-2 rounded-xl bg-apexDark hover:bg-apexPrimary text-gray-200 hover:text-white font-bold text-xs border border-apexBorder hover:border-apexPrimary transition-all flex items-center justify-center gap-1.5">
                   <i class="fa-solid fa-pen-to-square"></i> تعديل
@@ -711,7 +789,6 @@
       }).join('');
     }
 
-    // Modal Operations
     function openModal(isEdit = false) {
       document.getElementById('appModal').classList.remove('hidden');
       document.getElementById('appModal').classList.add('flex');
@@ -731,6 +808,39 @@
     function closeModal() {
       document.getElementById('appModal').classList.add('hidden');
       document.getElementById('appModal').classList.remove('flex');
+    }
+
+    function fillSampleData() {
+      document.getElementById('formType').value = 'GAME';
+      populateCategoryOptions();
+      document.getElementById('formCategory').value = 'action';
+      document.getElementById('formCustomCategory').value = 'ألعاب أكشن وحروب';
+      document.getElementById('formName').value = 'Cyber Assault: Battlefront';
+      document.getElementById('formPackageName').value = 'com.apex.cyberassault';
+      document.getElementById('formDeveloper').value = 'APEX Interactive Studios';
+      document.getElementById('formVersion').value = '1.2.0';
+      document.getElementById('formSize').value = '145 MB';
+      document.getElementById('formAndroidVersion').value = 'Android 8.0+';
+      document.getElementById('formAgeRating').value = '12+';
+      
+      const sampleApk = 'https://raw.githubusercontent.com/google/google-authenticator-android/master/app/release/app-release.apk';
+      const sampleIcon = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200';
+      const sampleBanner = 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800';
+      
+      document.getElementById('formDownloadUrl').value = sampleApk;
+      document.getElementById('formFileFormat').value = 'APK';
+      document.getElementById('formIconUrl').value = sampleIcon;
+      previewIcon(sampleIcon);
+      document.getElementById('formBannerUrl').value = sampleBanner;
+      previewBanner(sampleBanner);
+
+      document.getElementById('formShortDescription').value = 'أقوى ألعاب القتال التكتيكي من منظور الشخص الأول بجرافيك خارق.';
+      document.getElementById('formDescription').value = 'انضم إلى معارك مستقبلية ملحمية مع رسومات واقعية بدقة عالية، وتسلح بأحدث الأسلحة التكتيكية وخض معارك جماعية عبر الإنترنت.';
+
+      document.getElementById('formPublished').checked = true;
+      document.getElementById('formFeatured').checked = true;
+
+      showToast("تمت تعبئة النموذج التجريبي بنجاح! يمكنك الآن الضغط على 'حفظ ونشر'.");
     }
 
     function previewIcon(url) {
@@ -765,7 +875,6 @@
       `).join('');
     }
 
-    // Save or Update App in Firestore
     async function saveApp(e) {
       e.preventDefault();
       const saveBtn = document.getElementById('saveButton');
@@ -774,23 +883,23 @@
 
       try {
         const editId = document.getElementById('editAppId').value;
-        const type = document.getElementById('formType').value;
-        const mainCategory = document.getElementById('formCategory').value;
+        const type = document.getElementById('formType').value || 'APP';
+        const mainCategory = document.getElementById('formCategory').value || 'tools';
         const customCategory = (document.getElementById('formCustomCategory').value || '').trim();
         const effectiveCategory = customCategory.length > 0 ? customCategory : mainCategory;
         const subCategory = customCategory.length > 0 ? customCategory : '';
 
-        const name = document.getElementById('formName').value.trim();
-        const packageName = document.getElementById('formPackageName').value.trim();
+        const name = (document.getElementById('formName').value || '').trim();
+        const packageName = (document.getElementById('formPackageName').value || '').trim();
         const developer = (document.getElementById('formDeveloper').value || 'APEX Studios').trim();
         const version = (document.getElementById('formVersion').value || '1.0.0').trim();
         const size = (document.getElementById('formSize').value || '45 MB').trim();
         const androidVersion = (document.getElementById('formAndroidVersion').value || 'Android 8.0+').trim();
-        const ageRating = document.getElementById('formAgeRating').value;
+        const ageRating = document.getElementById('formAgeRating').value || '3+';
         
-        const downloadUrl = document.getElementById('formDownloadUrl').value.trim();
-        const fileFormat = document.getElementById('formFileFormat').value;
-        const iconUrl = document.getElementById('formIconUrl').value.trim();
+        const downloadUrl = (document.getElementById('formDownloadUrl').value || '').trim();
+        const fileFormat = document.getElementById('formFileFormat').value || 'APK';
+        const iconUrl = (document.getElementById('formIconUrl').value || '').trim();
         const bannerUrl = (document.getElementById('formBannerUrl').value || '').trim();
         
         const rawScreenshots = (document.getElementById('formScreenshots').value || '');
@@ -799,7 +908,7 @@
         const shortDescription = (document.getElementById('formShortDescription').value || '').trim();
         const description = (document.getElementById('formDescription').value || '').trim();
 
-        const publishDateStr = document.getElementById('formPublishDate').value;
+        const publishDateStr = document.getElementById('formPublishDate').value || new Date().toISOString().split('T')[0];
         const publishTimestamp = publishDateStr ? new Date(publishDateStr).getTime() : Date.now();
 
         const rating = parseFloat(document.getElementById('formRating').value) || 4.8;
@@ -809,9 +918,11 @@
         const published = document.getElementById('formPublished').checked;
         const isFeatured = document.getElementById('formFeatured').checked;
 
-        // Generate ID if new
-        const docId = editId || (type.toLowerCase() + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7));
+        const docId = editId && editId.length > 0 
+          ? editId 
+          : (type.toLowerCase() + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7));
 
+        // Sanitized payload - strictly no undefined values
         const appData = {
           id: docId,
           name: name,
@@ -858,29 +969,32 @@
         closeModal();
         showToast(editId ? "تم تحديث التطبيق بنجاح في المتجر!" : "تم حفظ ونشر التطبيق في المتجر بنجاح!");
       } catch (err) {
-        console.error("Save error:", err);
-        showToast("حدث خطأ أثناء الحفظ: " + err.message, true);
+        console.error("Save error details:", err);
+        if (err.code === 'permission-denied' || (err.message && err.message.toLowerCase().includes('permission'))) {
+          openRulesModal();
+          showToast("فشل الحفظ: قواعد أمان Firebase تمنع الكتابة (Permission Denied). يرجى تحديث القواعد في Firebase Console.", true);
+        } else {
+          showToast("خطأ أثناء الحفظ: " + (err.message || err.toString()), true);
+        }
       } finally {
         saveBtn.disabled = false;
         saveBtn.classList.remove('opacity-75');
       }
     }
 
-    // Edit App
     function editApp(id) {
       const app = allApps.find(a => a.id === id);
       if (!app) return;
 
       openModal(true);
 
-      document.getElementById('editAppId').value = app.id;
+      document.getElementById('editAppId').value = app.id || '';
       document.getElementById('modalTitle').innerText = 'تعديل: ' + (app.name || '');
       document.getElementById('saveButtonText').innerText = 'تحديث التغييرات';
 
       document.getElementById('formType').value = app.type || 'APP';
       populateCategoryOptions();
 
-      // Set category
       if (app.category) {
         const select = document.getElementById('formCategory');
         let found = false;
@@ -892,7 +1006,7 @@
           }
         }
         if (!found) {
-          document.getElementById('formCustomCategory').value = app.category;
+          document.getElementById('formCustomCategory').value = app.category || '';
         } else {
           document.getElementById('formCustomCategory').value = app.subCategory || '';
         }
@@ -940,7 +1054,6 @@
       document.getElementById('formFeatured').checked = !!(app.featured || app.isFeatured);
     }
 
-    // Delete Operations
     function confirmDelete(id, name) {
       appToDeleteId = id;
       document.getElementById('deleteAppPrompt').innerText = `هل أنت متأكد من حذف "${name}" نهائياً من المتجر؟`;
@@ -964,13 +1077,50 @@
         showToast("تم حذف العنصر بنجاح من قاعدة البيانات والمتجر!");
       } catch (err) {
         console.error("Delete error:", err);
+        if (err.code === 'permission-denied') {
+          openRulesModal();
+        }
         showToast("حدث خطأ أثناء الحذف: " + err.message, true);
+      }
+    }
+
+    async function testFirebaseWrite() {
+      showToast("جاري اختبار الاتصال والكتابة في Firebase...");
+      try {
+        const testDoc = db.collection('_healthcheck').doc('test_write');
+        await testDoc.set({ timestamp: Date.now(), status: 'OK' });
+        showToast("ممتاز! الاتصال والكتابة في Firebase تعمل بنجاح وبدون أي أخطاء.");
+      } catch (e) {
+        console.error("Health check error:", e);
+        if (e.code === 'permission-denied') {
+          openRulesModal();
+          showToast("فشل الاختبار: قواعد Firebase الحالية تمنع الكتابة (Permission Denied).", true);
+        } else {
+          showToast("خطأ في الاتصال بـ Firebase: " + e.message, true);
+        }
       }
     }
 
     function refreshData() {
       showToast("جاري تحديث البيانات من السحابة...");
       filterApps();
+    }
+
+    function openRulesModal() {
+      document.getElementById('rulesModal').classList.remove('hidden');
+      document.getElementById('rulesModal').classList.add('flex');
+    }
+
+    function closeRulesModal() {
+      document.getElementById('rulesModal').classList.add('hidden');
+      document.getElementById('rulesModal').classList.remove('flex');
+    }
+
+    function copyRules() {
+      const code = document.getElementById('firestoreRulesCode').innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        showToast("تم نسخ كود القواعد بنجاح! الصقه في Firebase Console ثم اضغط Publish.");
+      });
     }
 
     function showToast(msg, isError = false) {
@@ -980,19 +1130,18 @@
 
       text.innerText = msg;
       if (isError) {
-        icon.className = 'fa-solid fa-triangle-exclamation text-rose-400';
-        toast.className = 'fixed bottom-6 left-6 z-50 px-5 py-3 rounded-2xl bg-rose-950/90 border border-rose-500/50 text-white text-sm font-semibold shadow-2xl transition-all transform translate-y-0 opacity-100 flex items-center gap-3';
+        icon.className = 'fa-solid fa-triangle-exclamation text-rose-400 text-base shrink-0';
+        toast.className = 'fixed bottom-6 left-6 z-50 px-5 py-3.5 rounded-2xl bg-rose-950/95 border-2 border-rose-500/80 text-white text-xs sm:text-sm font-semibold shadow-2xl transition-all transform translate-y-0 opacity-100 flex items-center gap-3 max-w-md';
       } else {
-        icon.className = 'fa-solid fa-circle-check text-emerald-400';
-        toast.className = 'fixed bottom-6 left-6 z-50 px-5 py-3 rounded-2xl bg-apexCard border border-emerald-500/40 text-white text-sm font-semibold shadow-2xl transition-all transform translate-y-0 opacity-100 flex items-center gap-3';
+        icon.className = 'fa-solid fa-circle-check text-emerald-400 text-base shrink-0';
+        toast.className = 'fixed bottom-6 left-6 z-50 px-5 py-3.5 rounded-2xl bg-apexCard border border-emerald-500/50 text-white text-xs sm:text-sm font-semibold shadow-2xl transition-all transform translate-y-0 opacity-100 flex items-center gap-3 max-w-md';
       }
 
       setTimeout(() => {
-        toast.className = 'fixed bottom-6 left-6 z-50 px-5 py-3 rounded-2xl bg-apexCard border border-apexBorder text-white text-sm font-semibold shadow-2xl transition-all transform translate-y-20 opacity-0 flex items-center gap-3';
-      }, 3500);
+        toast.className = 'fixed bottom-6 left-6 z-50 px-5 py-3.5 rounded-2xl bg-apexCard border border-apexBorder text-white text-xs sm:text-sm font-semibold shadow-2xl transition-all transform translate-y-20 opacity-0 flex items-center gap-3 max-w-md';
+      }, 4000);
     }
 
-    // Startup
     populateCategoryOptions();
     startRealtimeSync();
   </script>

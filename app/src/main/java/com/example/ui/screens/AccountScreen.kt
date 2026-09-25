@@ -198,63 +198,67 @@ fun AccountScreen(
             Spacer(modifier = Modifier.height(20.dp))
         }
 
-        // If Admin or Super Admin: Prominent Admin Dashboard Entry
-        if (currentUser.canAccessAdminPanel) {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = ApexSecondary.copy(alpha = 0.14f)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, ApexSecondary.copy(alpha = 0.5f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .clickable { onNavigateTab(StoreNavigationTab.ADMIN_DASHBOARD) }
-                    .testTag("account_admin_dashboard_button")
+        // Prominent Admin Dashboard Entry (Always available for Super Admin and Admins)
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = ApexSecondary.copy(alpha = 0.14f)),
+            border = androidx.compose.foundation.BorderStroke(1.dp, ApexSecondary.copy(alpha = 0.5f)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .clickable {
+                    if (currentUser.canAccessAdminPanel) {
+                        onNavigateTab(StoreNavigationTab.ADMIN_DASHBOARD)
+                    } else {
+                        onNavigateTab(StoreNavigationTab.ADMIN_LOGIN)
+                    }
+                }
+                .testTag("account_admin_dashboard_button")
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(ApexSecondary),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(ApexSecondary),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AdminPanelSettings,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(14.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "لوحة التحكم والإدارة (Admin Dashboard)",
-                            color = ApexTextPrimary,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "إدارة التطبيقات، المشرفين، سجل النشاط، والإحصائيات",
-                            color = ApexTextSecondary,
-                            fontSize = 11.5.sp
-                        )
-                    }
-
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack, // in RTL ArrowBack points Left
+                        imageVector = Icons.Default.AdminPanelSettings,
                         contentDescription = null,
-                        tint = ApexSecondary,
-                        modifier = Modifier.size(20.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
+
+                Spacer(modifier = Modifier.width(14.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "لوحة تحكم وإدارة المتجر (Admin Dashboard)",
+                        color = ApexTextPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (currentUser.canAccessAdminPanel) "إضافة ونشر التطبيقات والألعاب وإدارة المتجر" else "دخول المشرفين لإضافة وتعديل التطبيقات",
+                        color = ApexTextSecondary,
+                        fontSize = 11.5.sp
+                    )
+                }
+
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = null,
+                    tint = ApexSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
             }
-            Spacer(modifier = Modifier.height(16.dp))
         }
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Services & Menu List matching the Reference Design
         Card(

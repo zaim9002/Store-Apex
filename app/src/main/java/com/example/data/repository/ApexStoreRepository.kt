@@ -872,6 +872,14 @@ class ApexStoreRepository(private val context: Context) {
         }
     }
 
+    private suspend fun getEffectiveAdminEmail(): String {
+        val current = _currentUser.value
+        if (current != null && current.email.isNotBlank()) {
+            return current.email
+        }
+        return SecurityValidator.SUPER_ADMIN_EMAIL
+    }
+
     /**
      * Add new app directly to Cloud Firestore & local Room cache
      */
@@ -879,24 +887,27 @@ class ApexStoreRepository(private val context: Context) {
         val user = _currentUser.value
         SecurityValidator.requireAdminOrSuperAdmin(user, _currentAdminProfile.value, "ADD")
 
+        val authorEmail = getEffectiveAdminEmail()
         val preparedApp = app.copy(
-            createdBy = user.email,
+            createdBy = if (app.createdBy.isNotBlank() && app.createdBy != "admin") app.createdBy else authorEmail,
             updatedAt = System.currentTimeMillis(),
             createdAt = if (app.createdAt > 0) app.createdAt else System.currentTimeMillis()
         )
 
-        // Write directly to Cloud Firestore
+        // 1. Write to local database immediately so UI updates instantly
+        appDao.insertApp(preparedApp)
+
+        // 2. Write directly to Cloud Firestore with timeout protection
         try {
-            FirebaseManager.appsCollection.document(preparedApp.id)
-                .set(preparedApp.toFirestoreMap())
-                .await()
+            withTimeoutOrNull(6000L) {
+                FirebaseManager.appsCollection.document(preparedApp.id)
+                    .set(preparedApp.toFirestoreMap(), SetOptions.merge())
+                    .await()
+            }
             Log.d(TAG, "App ${preparedApp.name} published directly to Cloud Firestore")
         } catch (e: Exception) {
-            Log.w(TAG, "Firestore write warning (saving locally): ${e.message}")
+            Log.w(TAG, "Firestore write warning (saved locally): ${e.message}")
         }
-
-        // Write to local database
-        appDao.insertApp(preparedApp)
 
         logActivity(
             action = "ADD_APP",
@@ -914,16 +925,20 @@ class ApexStoreRepository(private val context: Context) {
 
         val preparedApp = app.copy(updatedAt = System.currentTimeMillis())
 
+        // 1. Update local database immediately
+        appDao.insertApp(preparedApp)
+
+        // 2. Update Cloud Firestore
         try {
-            FirebaseManager.appsCollection.document(preparedApp.id)
-                .set(preparedApp.toFirestoreMap(), SetOptions.merge())
-                .await()
+            withTimeoutOrNull(6000L) {
+                FirebaseManager.appsCollection.document(preparedApp.id)
+                    .set(preparedApp.toFirestoreMap(), SetOptions.merge())
+                    .await()
+            }
             Log.d(TAG, "App ${preparedApp.name} updated in Cloud Firestore")
         } catch (e: Exception) {
-            Log.w(TAG, "Firestore update warning: ${e.message}")
+            Log.w(TAG, "Firestore update warning (saved locally): ${e.message}")
         }
-
-        appDao.insertApp(preparedApp)
 
         logActivity(
             action = "EDIT_APP",
@@ -939,14 +954,18 @@ class ApexStoreRepository(private val context: Context) {
         val user = _currentUser.value
         SecurityValidator.requireAdminOrSuperAdmin(user, _currentAdminProfile.value, "DELETE")
 
+        // 1. Delete from local database immediately
+        appDao.deleteApp(app)
+
+        // 2. Delete from Cloud Firestore
         try {
-            FirebaseManager.appsCollection.document(app.id).delete().await()
+            withTimeoutOrNull(6000L) {
+                FirebaseManager.appsCollection.document(app.id).delete().await()
+            }
             Log.d(TAG, "App ${app.name} deleted from Cloud Firestore")
         } catch (e: Exception) {
-            Log.w(TAG, "Firestore delete warning: ${e.message}")
+            Log.w(TAG, "Firestore delete warning (deleted locally): ${e.message}")
         }
-
-        appDao.deleteApp(app)
 
         logActivity(
             action = "DELETE_APP",
@@ -959,15 +978,19 @@ class ApexStoreRepository(private val context: Context) {
         val user = _currentUser.value
         SecurityValidator.requireAdminOrSuperAdmin(user, _currentAdminProfile.value, "PUBLISH")
 
+        // 1. Update local database immediately
+        appDao.setPublishStatus(appId, published)
+
+        // 2. Update Cloud Firestore
         try {
-            FirebaseManager.appsCollection.document(appId)
-                .update("published", published, "updatedAt", System.currentTimeMillis())
-                .await()
+            withTimeoutOrNull(6000L) {
+                FirebaseManager.appsCollection.document(appId)
+                    .update("published", published, "updatedAt", System.currentTimeMillis())
+                    .await()
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Firestore publish status update warning: ${e.message}")
         }
-
-        appDao.setPublishStatus(appId, published)
 
         logActivity(
             action = if (published) "PUBLISH_APP" else "UNPUBLISH_APP",

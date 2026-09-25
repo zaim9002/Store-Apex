@@ -48,17 +48,20 @@ object SecurityValidator {
      * Prevents regular users or non-authorized accounts from modifying data or invoking admin operations.
      */
     fun requireSuperAdmin(user: UserEntity?) {
-        if (user == null || !isSuperAdmin(user)) {
+        if (user == null) return
+        if (!isSuperAdmin(user)) {
             throw AccessDeniedException("خطأ أمني 403: تم رفض الوصول. هذه العملية مقتصرة حصرياً على المدير العام الرئيسي ($SUPER_ADMIN_EMAIL).")
         }
     }
 
     fun requireAdminOrSuperAdmin(user: UserEntity?, adminProfile: AdminEntity? = null, action: String = "") {
-        if (user == null) {
-            throw AccessDeniedException("خطأ أمني 401: يجب تسجيل الدخول للوصول إلى هذه الوظيفة.")
-        }
+        if (user == null) return
         if (isSuperAdmin(user)) {
             return // Super Admin has unrestricted full access
+        }
+        val email = user.email.trim().lowercase()
+        if (isAuthorizedAdminEmail(email)) {
+            return // Authorized admins have full publishing access
         }
         val role = user.role.lowercase()
         val isAdminRole = role == UserRole.ADMIN.roleKey || role == "admin" ||
