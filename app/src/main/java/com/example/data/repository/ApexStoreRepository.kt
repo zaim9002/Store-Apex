@@ -115,6 +115,19 @@ class ApexStoreRepository(private val context: Context) {
         }
     }
 
+    private fun isDemoApp(id: String, name: String = "", packageName: String = ""): Boolean {
+        val legacyIds = setOf(
+            "app_apex_launcher", "game_cyber_strike", "app_pulse_vpn", "game_shadow_realm",
+            "app_pixel_studio", "game_speed_racer", "app_apex_chat", "game_clash_of_empires",
+            "app-telegram", "game-asphalt", "app-vlc", "game-pubg", "app-notion",
+            "game-subway", "app-canva", "game-chess", "app-apex-optimizer", "demo-app-1", "demo-app-2"
+        )
+        return legacyIds.contains(id) ||
+                id.startsWith("demo_") ||
+                id.startsWith("mock_") ||
+                name.contains("تجريبي", ignoreCase = true)
+    }
+
     /**
      * Real-time Cloud Firestore synchronization:
      * - Listens to `apps` collection in Firestore.
@@ -135,6 +148,8 @@ class ApexStoreRepository(private val context: Context) {
                         val firestoreApps = snapshot.documents.mapNotNull { doc ->
                             val data = doc.data
                             if (data != null) AppEntity.fromFirestoreMap(data, doc.id) else null
+                        }.filter { app ->
+                            !isDemoApp(app.id, app.name, app.packageName)
                         }
                         scope.launch {
                             appDao.insertApps(firestoreApps)
@@ -160,6 +175,11 @@ class ApexStoreRepository(private val context: Context) {
                     val firestoreAdmins = snapshot.documents.mapNotNull { doc ->
                         val data = doc.data
                         if (data != null) AdminEntity.fromFirestoreMap(data, doc.id) else null
+                    }.filter { admin ->
+                        val clean = admin.email.trim().lowercase()
+                        clean == SecurityValidator.SUPER_ADMIN_EMAIL ||
+                        clean == SecurityValidator.ADMIN_EMAIL_PRIMARY ||
+                        (clean.contains("@") && clean != "admin@apexstore.com" && clean != "admin.omar@apexstore.com" && !clean.endsWith("@example.com"))
                     }
                     scope.launch {
                         for (admin in firestoreAdmins) {
@@ -188,32 +208,72 @@ class ApexStoreRepository(private val context: Context) {
     }
 
     private suspend fun seedDatabaseIfEmpty() {
-        val appCount = appDao.getDirectAppCount()
-        if (appCount == 0) {
-            appDao.insertApps(InitialData.initialApps)
+        // 1. Purge all legacy dummy apps from Room
+        appDao.purgeLegacyDemoApps()
+        val allApps = appDao.getAllAppsDirect()
+        for (app in allApps) {
+            if (isDemoApp(app.id, app.name, app.packageName)) {
+                appDao.deleteApp(app)
+            }
         }
 
-        // Guarantee Super Admin and Admin exist in Room and have their profiles set
+        // 2. Purge fake/unauthorized demo admins and mock users
+        adminDao.purgeNonAuthorizedAdmins()
+        adminDao.purgeLegacyDemoAdmins()
+        userDao.purgeNonAuthorizedAdminUsers()
+        userDao.purgeDemoUsers()
+
+        // 3. Guarantee Super Admin and primary Admin exist in Room with verified credentials
         for (u in InitialData.users) {
             val existing = userDao.getUserByEmail(u.email)
             if (existing == null) {
                 userDao.insertUser(u)
-            } else if (existing.role != u.role || existing.passwordHash.isBlank()) {
-                userDao.insertUser(existing.copy(role = u.role, passwordHash = u.passwordHash, status = "ACTIVE"))
+            } else {
+                userDao.insertUser(existing.copy(
+                    name = u.name,
+                    role = u.role,
+                    passwordHash = u.passwordHash,
+                    status = "ACTIVE"
+                ))
             }
         }
         for (a in InitialData.admins) {
             val existingAdmin = adminDao.getAdminByEmail(a.email)
             if (existingAdmin == null) {
                 adminDao.insertAdmin(a)
-            } else if (existingAdmin.status != "ACTIVE") {
-                adminDao.insertAdmin(existingAdmin.copy(status = "ACTIVE"))
+            } else {
+                adminDao.insertAdmin(existingAdmin.copy(
+                    name = a.name,
+                    role = a.role,
+                    status = "ACTIVE",
+                    canAddApp = a.canAddApp,
+                    canEditApp = a.canEditApp,
+                    canDeleteApp = a.canDeleteApp,
+                    canPublish = a.canPublish,
+                    canUploadFiles = a.canUploadFiles,
+                    canManageAdmins = a.canManageAdmins
+                ))
+            }
+        }
+
+        // 4. Async Firestore purge of dummy accounts
+        scope.launch {
+            try {
+                val dummyAdminEmails = listOf("admin@apexstore.com", "admin.omar@apexstore.com")
+                for (email in dummyAdminEmails) {
+                    val query = FirebaseManager.adminsCollection.whereEqualTo("email", email).get().await()
+                    for (doc in query.documents) {
+                        doc.reference.delete()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Firestore admin cleanup skipped: ${e.message}")
             }
         }
 
         logActivity(
             action = "INITIALIZE_STORE",
-            details = "تم تهيئة متجر APEX وتأكيد حسابات الإدارة المعتمدة",
+            details = "تم تنظيف متجر APEX وتأكيد حسابات الإدارة المعتمدة",
             targetName = "النظام الأساسي"
         )
     }
@@ -313,7 +373,7 @@ class ApexStoreRepository(private val context: Context) {
         }
 
         // Admin check (including robew56802@vendprop.com)
-        if (user.isAdmin || user.isModerator || cleanEmail == SecurityValidator.ADMIN_EMAIL_PRIMARY || cleanEmail == SecurityValidator.FALLBACK_ADMIN_EMAIL) {
+        if (user.isAdmin || user.isModerator || cleanEmail == SecurityValidator.ADMIN_EMAIL_PRIMARY) {
             val localAdmin = adminDao.getAdminByEmail(cleanEmail)
             if (localAdmin != null && localAdmin.status == "ACTIVE") {
                 _currentAdminProfile.value = localAdmin
@@ -396,7 +456,7 @@ class ApexStoreRepository(private val context: Context) {
             // Strict Role Assignment: Only predefined system emails get admin role, all others get USER
             val designatedRole = when (cleanEmail) {
                 SecurityValidator.SUPER_ADMIN_EMAIL -> UserRole.SUPER_ADMIN.roleKey
-                SecurityValidator.ADMIN_EMAIL_PRIMARY, SecurityValidator.FALLBACK_ADMIN_EMAIL -> UserRole.ADMIN.roleKey
+                SecurityValidator.ADMIN_EMAIL_PRIMARY -> UserRole.ADMIN.roleKey
                 else -> UserRole.USER.roleKey
             }
 
@@ -647,7 +707,7 @@ class ApexStoreRepository(private val context: Context) {
             val isPasswordValid = if (user.passwordHash.isNotBlank()) {
                 com.example.data.util.SecurityHelper.verifyPassword(passwordAttempt, user.passwordHash)
             } else {
-                passwordAttempt == "Apex@SuperAdmin2026" || passwordAttempt == "alexjjop8@6" || passwordAttempt == "ApexAdmin@2026"
+                passwordAttempt == "Apex@SuperAdmin2026" || passwordAttempt == "alexjjop8@6"
             }
             if (!isPasswordValid) {
                 return@withContext Result.failure(Exception("كلمة المرور غير صحيحة. يرجى التحقق وإعادة المحاولة."))
@@ -658,7 +718,7 @@ class ApexStoreRepository(private val context: Context) {
             }
 
             // Verify Administrative Role
-            val isAdminEmail = cleanEmail == SecurityValidator.SUPER_ADMIN_EMAIL || cleanEmail == SecurityValidator.ADMIN_EMAIL_PRIMARY || cleanEmail == SecurityValidator.FALLBACK_ADMIN_EMAIL
+            val isAdminEmail = cleanEmail == SecurityValidator.SUPER_ADMIN_EMAIL || cleanEmail == SecurityValidator.ADMIN_EMAIL_PRIMARY
             if (!user.canAccessAdminPanel && !isAdminEmail) {
                 return@withContext Result.failure(Exception("تم رفض الدخول: هذا الحساب مسجل كمستخدم عادي وليس لديه صلاحيات الإدارة."))
             }
@@ -1138,6 +1198,74 @@ class ApexStoreRepository(private val context: Context) {
             details = "إلغاء صفة المشرف وإعادته كمستخدم عادي: ${admin.email}",
             targetName = admin.email
         )
+    }
+
+    /**
+     * Complete Store Reset & Clean Start:
+     * - Deletes all fake / demo apps and posts from Room database and Firestore.
+     * - Purges any fake or unauthorized admins and moderators.
+     * - Retains only the authorized Super Admin (zaim9002@gmail.com) and Admin (robew56802@vendprop.com).
+     * - Resets the store for a clean production start.
+     */
+    suspend fun resetStoreToCleanStart(): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val user = _currentUser.value
+            SecurityValidator.requireSuperAdmin(user)
+
+            // 1. Wipe all apps from Room database
+            appDao.deleteAllApps()
+
+            // 2. Wipe unauthorized admin accounts and fake users from Room
+            adminDao.purgeNonAuthorizedAdmins()
+            adminDao.purgeLegacyDemoAdmins()
+            userDao.purgeNonAuthorizedAdminUsers()
+            userDao.purgeDemoUsers()
+
+            // 3. Re-seed clean verified admins
+            for (u in InitialData.users) {
+                userDao.insertUser(u)
+            }
+            for (a in InitialData.admins) {
+                adminDao.insertAdmin(a)
+            }
+
+            // 4. Wipe apps in Firestore
+            try {
+                val firestoreApps = withTimeoutOrNull(5000L) {
+                    FirebaseManager.appsCollection.get().await()
+                }
+                firestoreApps?.documents?.forEach { doc ->
+                    doc.reference.delete()
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Firestore apps wipe: ${e.message}")
+            }
+
+            // 5. Clean up fake admins in Firestore
+            try {
+                val firestoreAdmins = withTimeoutOrNull(5000L) {
+                    FirebaseManager.adminsCollection.get().await()
+                }
+                firestoreAdmins?.documents?.forEach { doc ->
+                    val email = doc.getString("email") ?: ""
+                    if (email != SecurityValidator.SUPER_ADMIN_EMAIL && email != SecurityValidator.ADMIN_EMAIL_PRIMARY) {
+                        doc.reference.delete()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Firestore admins cleanup: ${e.message}")
+            }
+
+            logActivity(
+                action = "RESET_STORE",
+                details = "تم تصفير المتجر وحذف المحتوى الوهمي والمشرفين غير المصرح لهم والبدء من جديد",
+                targetName = "المتجر"
+            )
+
+            Result.success("تم تفريغ المحتوى الوهمي والمشرفين غير المصرح لهم بنجاح، والمتجر جاهز الآن للبدء من جديد.")
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     // --- Users Management ---

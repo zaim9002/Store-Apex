@@ -9,14 +9,13 @@ class AccessDeniedException(message: String) : SecurityException(message)
 object SecurityValidator {
     const val SUPER_ADMIN_EMAIL = "zaim9002@gmail.com"
     const val ADMIN_EMAIL_PRIMARY = "robew56802@vendprop.com"
-    const val FALLBACK_ADMIN_EMAIL = "admin@apexstore.com"
 
     fun isSuperAdmin(user: UserEntity?): Boolean {
         if (user == null) return false
         val role = user.role.trim().lowercase()
         val email = user.email.trim().lowercase()
         val hasSuperAdminRole = role == UserRole.SUPER_ADMIN.roleKey || role == "super_admin" || role == "super admin"
-        return (hasSuperAdminRole && (email == SUPER_ADMIN_EMAIL || email == FALLBACK_ADMIN_EMAIL)) || (email == SUPER_ADMIN_EMAIL)
+        return (hasSuperAdminRole && email == SUPER_ADMIN_EMAIL) || (email == SUPER_ADMIN_EMAIL)
     }
 
     fun isAdminOrSuperAdmin(user: UserEntity?, adminProfile: AdminEntity? = null): Boolean {
@@ -24,7 +23,7 @@ object SecurityValidator {
         if (isSuperAdmin(user)) return true
         val role = user.role.trim().lowercase()
         val email = user.email.trim().lowercase()
-        if (email == ADMIN_EMAIL_PRIMARY || email == FALLBACK_ADMIN_EMAIL) return true
+        if (email == ADMIN_EMAIL_PRIMARY) return true
         val isAdminRole = role == UserRole.ADMIN.roleKey || role == "admin" ||
                 role == UserRole.MODERATOR.roleKey || role == "moderator"
         if (!isAdminRole) return false

@@ -43,7 +43,7 @@ data class AppEntity(
     val ratingCount: Int = 120,
     val published: Boolean = true,
     val isFeatured: Boolean = false,
-    val createdBy: String = "admin@apexstore.com",
+    val createdBy: String = "admin",
     val status: String = "ACTIVE",
     val updatedAt: Long = System.currentTimeMillis(),
     val createdAt: Long = System.currentTimeMillis()
@@ -145,7 +145,7 @@ data class AppEntity(
                 ratingCount = ((data["ratingCount"] as? Number)?.toInt()) ?: 0,
                 published = (data["published"] as? Boolean) ?: true,
                 isFeatured = (data["featured"] as? Boolean) ?: ((data["isFeatured"] as? Boolean) ?: false),
-                createdBy = (data["createdBy"] as? String) ?: "admin@apexstore.com",
+                createdBy = (data["createdBy"] as? String) ?: "admin",
                 status = (data["status"] as? String) ?: "ACTIVE",
                 updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
                 createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()

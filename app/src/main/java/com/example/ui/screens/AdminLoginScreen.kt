@@ -24,11 +24,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -38,6 +38,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -300,7 +301,51 @@ fun AdminLoginScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "الحسابات المعتمدة (تعبئة سريعة):",
+                        color = ApexTextSecondary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                email = "zaim9002@gmail.com"
+                                password = "Apex@SuperAdmin2026"
+                                errorMessage = null
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = ApexPrimary),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, ApexPrimary.copy(alpha = 0.5f)),
+                            modifier = Modifier.weight(1f).height(36.dp)
+                        ) {
+                            Text("المدير العام (Super)", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                email = "robew56802@vendprop.com"
+                                password = "alexjjop8@6"
+                                errorMessage = null
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = ApexSecondary),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, ApexSecondary.copy(alpha = 0.5f)),
+                            modifier = Modifier.weight(1f).height(36.dp)
+                        ) {
+                            Text("مشرف النظام (Admin)", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
                         onClick = {
@@ -338,7 +383,7 @@ fun AdminLoginScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("جارٍ التحقق من الهوية...", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         } else {
-                            Icon(Icons.Default.Login, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("تسجيل الدخول", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         }
@@ -368,14 +413,14 @@ fun AdminLoginScreen(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "حساب المدير العام الرئيسي (Super Admin)",
+                            text = "بيانات حسابات الإدارة المعتمدة",
                             color = ApexAmber,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "البريد المعتمد: zaim9002@gmail.com\nيتم التحقق من الصلاحيات وكلمة المرور المشفرة server-side ولن يتم منح أي مستخدم عادي رتبة إدارة.",
+                            text = "1. المدير العام (Super Admin):\n- البريد: zaim9002@gmail.com\n- كلمة المرور: Apex@SuperAdmin2026\n\n2. مشرف النظام (Admin):\n- البريد: robew56802@vendprop.com\n- كلمة المرور: alexjjop8@6\n\nيتم التحقق من الصلاحيات والتحقق الأمني server-side مع حماية مطلقة لقاعدة البيانات.",
                             color = ApexTextSecondary,
                             fontSize = 11.sp,
                             lineHeight = 16.sp

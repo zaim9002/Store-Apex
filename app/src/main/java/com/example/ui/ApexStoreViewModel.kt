@@ -555,4 +555,27 @@ class ApexStoreViewModel(application: Application) : AndroidViewModel(applicatio
             }
         }
     }
+
+    fun resetStoreToCleanStart(onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val res = repository.resetStoreToCleanStart()
+                res.fold(
+                    onSuccess = { msg ->
+                        _snackbarEvent.emit(msg)
+                        onResult(true, msg)
+                    },
+                    onFailure = { err ->
+                        val msg = err.localizedMessage ?: "حدث خطأ أثناء تفريغ المتجر"
+                        _snackbarEvent.emit(msg)
+                        onResult(false, msg)
+                    }
+                )
+            } catch (e: Exception) {
+                val msg = e.localizedMessage ?: "فشلت العملية"
+                _snackbarEvent.emit(msg)
+                onResult(false, msg)
+            }
+        }
+    }
 }

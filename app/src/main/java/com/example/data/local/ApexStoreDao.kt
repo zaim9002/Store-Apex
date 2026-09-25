@@ -100,7 +100,7 @@ interface AppDao {
     @Query("SELECT COALESCE(SUM(downloadCount), 0) FROM apps")
     fun getTotalDownloadsCount(): Flow<Long>
 
-    @Query("DELETE FROM apps WHERE id IN ('app-telegram', 'game-asphalt', 'app-vlc', 'game-pubg', 'app-notion', 'game-subway', 'app-canva', 'game-chess', 'app-apex-optimizer')")
+    @Query("DELETE FROM apps WHERE id IN ('app_apex_launcher', 'game_cyber_strike', 'app_pulse_vpn', 'game_shadow_realm', 'app_pixel_studio', 'game_speed_racer', 'app_apex_chat', 'game_clash_of_empires', 'app-telegram', 'game-asphalt', 'app-vlc', 'game-pubg', 'app-notion', 'game-subway', 'app-canva', 'game-chess', 'app-apex-optimizer')")
     suspend fun purgeLegacyDemoApps()
 
     @Query("DELETE FROM apps")
@@ -142,6 +142,9 @@ interface UserDao {
     @Query("SELECT COUNT(*) FROM users")
     suspend fun getUsersCountDirect(): Int
 
+    @Query("DELETE FROM users WHERE role IN ('admin', 'moderator', 'super_admin') AND email NOT IN ('zaim9002@gmail.com', 'robew56802@vendprop.com')")
+    suspend fun purgeNonAuthorizedAdminUsers()
+
     @Query("DELETE FROM users WHERE email != 'zaim9002@gmail.com'")
     suspend fun purgeDemoUsers()
 }
@@ -168,6 +171,9 @@ interface AdminDao {
 
     @Query("DELETE FROM admins WHERE id = :id")
     suspend fun deleteAdminById(id: String)
+
+    @Query("DELETE FROM admins WHERE email NOT IN ('zaim9002@gmail.com', 'robew56802@vendprop.com')")
+    suspend fun purgeNonAuthorizedAdmins()
 
     @Query("DELETE FROM admins WHERE email = 'admin.omar@apexstore.com'")
     suspend fun purgeLegacyDemoAdmins()

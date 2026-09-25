@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.People
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Publish
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -42,6 +44,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -905,9 +908,64 @@ private fun ActivityLogCard(log: ActivityLogEntity) {
 @Composable
 private fun AdminSettingsTab(viewModel: ApexStoreViewModel) {
     val settings by viewModel.storeSettings.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
     var storeName by remember(settings) { mutableStateOf(settings.storeName) }
     var allowRegistration by remember(settings) { mutableStateOf(settings.allowPublicRegistration) }
     var requireApproval by remember(settings) { mutableStateOf(settings.requireAdminApprovalForApps) }
+    var showResetDialog by remember { mutableStateOf(false) }
+    var isResetting by remember { mutableStateOf(false) }
+
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isResetting) showResetDialog = false },
+            title = {
+                Text(
+                    text = "تفريغ المحتوى والبدء من جديد",
+                    color = ApexRed,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "هل أنت متأكد من حذف جميع المنشورات/التطبيقات والمشرفين الوهميين من قاعدة البيانات؟\n\nسيتم الاحتفاظ فقط بحسابات الإدارة المعتمدة (المدير العام: zaim9002@gmail.com والمشرف: robew56802@vendprop.com) وسيبدأ المتجر بصفحة فارغة ونظيفة وجاهزة للمحتوى الحقيقي.",
+                    color = ApexTextPrimary,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        isResetting = true
+                        viewModel.resetStoreToCleanStart { success, _ ->
+                            isResetting = false
+                            showResetDialog = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ApexRed, contentColor = Color.White),
+                    enabled = !isResetting
+                ) {
+                    if (isResetting) {
+                        CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("جارٍ التنظيف...")
+                    } else {
+                        Text("نعم، تفريغ وبدء من جديد")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showResetDialog = false },
+                    enabled = !isResetting
+                ) {
+                    Text("إلغاء", color = ApexTextSecondary)
+                }
+            },
+            containerColor = ApexSurfaceCard
+        )
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -942,6 +1000,52 @@ private fun AdminSettingsTab(viewModel: ApexStoreViewModel) {
             modifier = Modifier.fillMaxWidth().height(44.dp)
         ) {
             Text("حفظ الإعدادات", fontWeight = FontWeight.Bold)
+        }
+
+        if (currentUser.isSuperAdmin) {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = ApexRed.copy(alpha = 0.08f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, ApexRed.copy(alpha = 0.35f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(imageVector = Icons.Default.Warning, contentDescription = null, tint = ApexRed, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "منطقة التصفير والبدء من جديد (Clean Start)",
+                            color = ApexRed,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "لحذف كل التطبيقات الوهمية، والمنشورات التجريبية، والمشرفين غير المصرح لهم والبدء من جديد بمتجر نظيف وخالٍ من المحتوى الزائف.",
+                        color = ApexTextSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = { showResetDialog = true },
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ApexRed, contentColor = Color.White),
+                        modifier = Modifier.fillMaxWidth().height(40.dp).testTag("reset_store_clean_button")
+                    ) {
+                        Icon(imageVector = Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("تفريغ المحتوى الوهمي والبدء من جديد", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     }
 }
