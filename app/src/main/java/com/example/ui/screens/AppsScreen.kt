@@ -48,7 +48,18 @@ fun AppsScreen(
 
     val filteredApps = remember(apps, selectedCategoryId) {
         if (selectedCategoryId == null) apps
-        else apps.filter { it.category == selectedCategoryId }
+        else {
+            val catObj = CategoryData.appCategories.find { it.id == selectedCategoryId }
+            apps.filter { app ->
+                app.category.equals(selectedCategoryId, ignoreCase = true) ||
+                app.subCategory.equals(selectedCategoryId, ignoreCase = true) ||
+                (catObj != null && (
+                    app.category.contains(catObj.nameAr, ignoreCase = true) ||
+                    app.category.contains(catObj.nameEn, ignoreCase = true) ||
+                    app.subCategory.contains(catObj.nameAr, ignoreCase = true)
+                ))
+            }
+        }
     }
 
     Column(

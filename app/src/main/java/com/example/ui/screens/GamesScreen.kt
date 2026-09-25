@@ -48,7 +48,18 @@ fun GamesScreen(
 
     val filteredGames = remember(games, selectedCategoryId) {
         if (selectedCategoryId == null) games
-        else games.filter { it.category == selectedCategoryId }
+        else {
+            val catObj = CategoryData.gameCategories.find { it.id == selectedCategoryId }
+            games.filter { game ->
+                game.category.equals(selectedCategoryId, ignoreCase = true) ||
+                game.subCategory.equals(selectedCategoryId, ignoreCase = true) ||
+                (catObj != null && (
+                    game.category.contains(catObj.nameAr, ignoreCase = true) ||
+                    game.category.contains(catObj.nameEn, ignoreCase = true) ||
+                    game.subCategory.contains(catObj.nameAr, ignoreCase = true)
+                ))
+            }
+        }
     }
 
     Column(

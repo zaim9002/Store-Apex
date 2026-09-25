@@ -152,6 +152,13 @@ class ApexStoreRepository(private val context: Context) {
                             !isDemoApp(app.id, app.name, app.packageName)
                         }
                         scope.launch {
+                            val firestoreIds = firestoreApps.map { it.id }.toSet()
+                            val localApps = appDao.getAllAppsDirect()
+                            for (local in localApps) {
+                                if (!firestoreIds.contains(local.id) && !isDemoApp(local.id, local.name, local.packageName)) {
+                                    appDao.deleteApp(local)
+                                }
+                            }
                             appDao.insertApps(firestoreApps)
                             Log.d(TAG, "Synced ${firestoreApps.size} apps from Firestore")
                         }

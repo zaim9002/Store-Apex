@@ -105,38 +105,71 @@ data class AppEntity(
 
     companion object {
         fun fromFirestoreMap(data: Map<String, Any?>, fallbackId: String = ""): AppEntity {
-            val rawScreenshots = data["screenshots"]
+            val rawScreenshots = data["screenshots"] ?: data["screenshotUrls"] ?: data["images"]
             val screenshotsStr = when (rawScreenshots) {
-                is List<*> -> rawScreenshots.filterNotNull().joinToString(",") { it.toString() }
+                is List<*> -> rawScreenshots.filterNotNull().joinToString(",") { it.toString().trim() }
                 is String -> rawScreenshots
                 else -> ""
             }
 
-            val fileUrlVal = (data["fileUrl"] as? String) ?: ""
-            val apkUrlVal = (data["apkUrl"] as? String) ?: fileUrlVal
+            val directDownload = (data["downloadUrl"] as? String)
+                ?: (data["fileUrl"] as? String)
+                ?: (data["apkUrl"] as? String)
+                ?: (data["xapkUrl"] as? String)
+                ?: ""
+
+            val apkUrlVal = (data["apkUrl"] as? String) ?: directDownload
             val xapkUrlVal = (data["xapkUrl"] as? String) ?: ""
-            val fileFormatVal = (data["fileFormat"] as? String) ?: if (xapkUrlVal.isNotBlank()) "XAPK" else "APK"
+            val explicitFormat = (data["fileFormat"] as? String)
+            val fileFormatVal = when {
+                !explicitFormat.isNullOrBlank() -> explicitFormat.uppercase()
+                xapkUrlVal.isNotBlank() || directDownload.endsWith(".xapk", ignoreCase = true) -> "XAPK"
+                else -> "APK"
+            }
+
+            val iconVal = (data["iconUrl"] as? String) ?: (data["icon"] as? String) ?: ""
+            val bannerVal = (data["bannerUrl"] as? String) ?: (data["banner"] as? String) ?: (data["coverUrl"] as? String) ?: ""
+
+            val parsedCreatedAt = when (val c = data["createdAt"] ?: data["publishDate"] ?: data["date"]) {
+                is Number -> c.toLong()
+                is String -> {
+                    try {
+                        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).parse(c)?.time ?: System.currentTimeMillis()
+                    } catch (e: Exception) {
+                        System.currentTimeMillis()
+                    }
+                }
+                else -> System.currentTimeMillis()
+            }
+
+            val parsedUpdatedAt = when (val u = data["updatedAt"]) {
+                is Number -> u.toLong()
+                else -> parsedCreatedAt
+            }
+
+            val rawCategory = (data["category"] as? String) ?: (data["categoryName"] as? String) ?: "tools"
+            val rawSubCategory = (data["subCategory"] as? String) ?: (data["genre"] as? String) ?: ""
 
             return AppEntity(
                 id = (data["id"] as? String) ?: fallbackId,
-                name = (data["name"] as? String) ?: "",
-                type = (data["type"] as? String) ?: AppType.APP.name,
+                name = (data["name"] as? String) ?: (data["title"] as? String) ?: "",
+                type = (data["type"] as? String)?.uppercase() ?: AppType.APP.name,
                 developer = (data["developer"] as? String) ?: "APEX Developer",
                 shortDescription = (data["shortDescription"] as? String) ?: "",
-                description = (data["description"] as? String) ?: "",
-                version = (data["version"] as? String) ?: "1.0.0",
+                description = (data["description"] as? String) ?: (data["desc"] as? String) ?: "",
+                version = (data["version"] as? String) ?: (data["versionName"] as? String) ?: "1.0.0",
                 size = (data["size"] as? String) ?: "25 MB",
                 packageName = (data["packageName"] as? String) ?: "com.apexstore.app",
                 androidVersion = (data["androidVersion"] as? String) ?: "Android 8.0+",
-                category = (data["category"] as? String) ?: "tools",
-                subCategory = (data["subCategory"] as? String) ?: "",
+                category = rawCategory,
+                subCategory = rawSubCategory,
                 ageRating = (data["ageRating"] as? String) ?: "3+",
-                iconUrl = (data["iconUrl"] as? String) ?: "",
-                bannerUrl = (data["bannerUrl"] as? String) ?: "",
+                iconUrl = iconVal,
+                bannerUrl = bannerVal,
                 screenshots = screenshotsStr,
                 apkUrl = apkUrlVal,
                 xapkUrl = xapkUrlVal,
-                fileUrl = fileUrlVal.ifBlank { apkUrlVal },
+                fileUrl = directDownload.ifBlank { apkUrlVal },
                 fileFormat = fileFormatVal,
                 websiteUrl = (data["websiteUrl"] as? String) ?: "",
                 downloadSource = (data["downloadSource"] as? String) ?: DownloadSource.DIRECT_LINK.name,
@@ -147,8 +180,8 @@ data class AppEntity(
                 isFeatured = (data["featured"] as? Boolean) ?: ((data["isFeatured"] as? Boolean) ?: false),
                 createdBy = (data["createdBy"] as? String) ?: "admin",
                 status = (data["status"] as? String) ?: "ACTIVE",
-                updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
-                createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+                updatedAt = parsedUpdatedAt,
+                createdAt = parsedCreatedAt
             )
         }
     }
