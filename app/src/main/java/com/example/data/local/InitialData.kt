@@ -24,6 +24,15 @@ object InitialData {
             avatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200",
             passwordHash = com.example.data.util.SecurityHelper.hashPassword("alexjjop8@6"),
             status = "ACTIVE"
+        ),
+        UserEntity(
+            id = "user-admin-gjhh",
+            name = "مشرف النظام (gjhh611)",
+            email = "gjhh611@gmail.com",
+            role = UserRole.ADMIN.roleKey,
+            avatar = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200",
+            passwordHash = com.example.data.util.SecurityHelper.hashPassword("Apex@Admin2026"),
+            status = "ACTIVE"
         )
     )
 
@@ -47,6 +56,20 @@ object InitialData {
             userId = "user-admin-robew",
             email = "robew56802@vendprop.com",
             name = "مشرف النظام (Admin)",
+            role = UserRole.ADMIN.roleKey,
+            canAddApp = true,
+            canEditApp = true,
+            canDeleteApp = true,
+            canPublish = true,
+            canUploadFiles = true,
+            canManageAdmins = false,
+            status = "ACTIVE"
+        ),
+        AdminEntity(
+            id = "admin-gjhh-profile",
+            userId = "user-admin-gjhh",
+            email = "gjhh611@gmail.com",
+            name = "مشرف النظام (gjhh611)",
             role = UserRole.ADMIN.roleKey,
             canAddApp = true,
             canEditApp = true,

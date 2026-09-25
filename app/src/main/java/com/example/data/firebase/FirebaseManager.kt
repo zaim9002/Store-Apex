@@ -19,8 +19,8 @@ object FirebaseManager {
     const val PROJECT_ID = "apex-store-3126f"
     const val PROJECT_NUMBER = "735467450775"
     const val STORAGE_BUCKET = "apex-store-3126f.firebasestorage.app"
-    const val APPLICATION_ID = "1:735467450775:android:a1b2c3d4e5f6a7b8c9d0e1"
-    const val API_KEY = "AIzaSyApexStoreFirebaseCloudServiceKeyDefault"
+    const val APPLICATION_ID = "1:735467450775:android:e287568a7a5280243594d2"
+    const val API_KEY = "AIzaSyBS5cf8sYsBve8C04UbhNP32QDUZrkoeQQ"
 
     // Collections
     const val COLLECTION_USERS = "users"

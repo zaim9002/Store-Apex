@@ -75,6 +75,7 @@ import com.example.ui.theme.ApexSecondary
 import com.example.ui.theme.ApexSurface
 import com.example.ui.theme.ApexSurfaceCard
 import com.example.ui.theme.ApexSurfaceVariant
+import com.example.ui.theme.ApexTertiary
 import com.example.ui.theme.ApexTextMuted
 import com.example.ui.theme.ApexTextPrimary
 import com.example.ui.theme.ApexTextSecondary
@@ -312,36 +313,55 @@ fun AdminLoginScreen(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        OutlinedButton(
-                            onClick = {
-                                email = "zaim9002@gmail.com"
-                                password = "Apex@SuperAdmin2026"
-                                errorMessage = null
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = ApexPrimary),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, ApexPrimary.copy(alpha = 0.5f)),
-                            modifier = Modifier.weight(1f).height(36.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("المدير العام (Super)", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            OutlinedButton(
+                                onClick = {
+                                    email = "zaim9002@gmail.com"
+                                    password = "Apex@SuperAdmin2026"
+                                    errorMessage = null
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = ApexPrimary),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, ApexPrimary.copy(alpha = 0.5f)),
+                                modifier = Modifier.weight(1f).height(36.dp)
+                            ) {
+                                Text("المدير العام (Super)", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    email = "robew56802@vendprop.com"
+                                    password = "alexjjop8@6"
+                                    errorMessage = null
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = ApexSecondary),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, ApexSecondary.copy(alpha = 0.5f)),
+                                modifier = Modifier.weight(1f).height(36.dp)
+                            ) {
+                                Text("مشرف (robew)", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
 
                         OutlinedButton(
                             onClick = {
-                                email = "robew56802@vendprop.com"
-                                password = "alexjjop8@6"
+                                email = "gjhh611@gmail.com"
+                                password = "Apex@Admin2026"
                                 errorMessage = null
                             },
                             shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = ApexSecondary),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, ApexSecondary.copy(alpha = 0.5f)),
-                            modifier = Modifier.weight(1f).height(36.dp)
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = ApexTertiary),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, ApexTertiary.copy(alpha = 0.5f)),
+                            modifier = Modifier.fillMaxWidth().height(36.dp)
                         ) {
-                            Text("مشرف النظام (Admin)", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("مشرف النظام الجديد (gjhh611)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -420,7 +440,7 @@ fun AdminLoginScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "1. المدير العام (Super Admin):\n- البريد: zaim9002@gmail.com\n- كلمة المرور: Apex@SuperAdmin2026\n\n2. مشرف النظام (Admin):\n- البريد: robew56802@vendprop.com\n- كلمة المرور: alexjjop8@6\n\nيتم التحقق من الصلاحيات والتحقق الأمني server-side مع حماية مطلقة لقاعدة البيانات.",
+                            text = "1. المدير العام (Super Admin):\n- البريد: zaim9002@gmail.com\n- كلمة المرور: Apex@SuperAdmin2026\n\n2. مشرف النظام (Admin):\n- البريد: robew56802@vendprop.com\n- كلمة المرور: alexjjop8@6\n\n3. مشرف النظام (Admin):\n- البريد: gjhh611@gmail.com\n- كلمة المرور: Apex@Admin2026\n\nيتم التحقق من الصلاحيات والتحقق الأمني server-side مع حماية مطلقة لقاعدة البيانات.",
                             color = ApexTextSecondary,
                             fontSize = 11.sp,
                             lineHeight = 16.sp

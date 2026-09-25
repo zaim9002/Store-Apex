@@ -177,8 +177,7 @@ class ApexStoreRepository(private val context: Context) {
                         if (data != null) AdminEntity.fromFirestoreMap(data, doc.id) else null
                     }.filter { admin ->
                         val clean = admin.email.trim().lowercase()
-                        clean == SecurityValidator.SUPER_ADMIN_EMAIL ||
-                        clean == SecurityValidator.ADMIN_EMAIL_PRIMARY ||
+                        SecurityValidator.isAuthorizedAdminEmail(clean) ||
                         (clean.contains("@") && clean != "admin@apexstore.com" && clean != "admin.omar@apexstore.com" && !clean.endsWith("@example.com"))
                     }
                     scope.launch {
@@ -372,8 +371,8 @@ class ApexStoreRepository(private val context: Context) {
             return
         }
 
-        // Admin check (including robew56802@vendprop.com)
-        if (user.isAdmin || user.isModerator || cleanEmail == SecurityValidator.ADMIN_EMAIL_PRIMARY) {
+        // Admin check (including robew56802@vendprop.com and gjhh611@gmail.com)
+        if (user.isAdmin || user.isModerator || SecurityValidator.isAuthorizedAdminEmail(cleanEmail)) {
             val localAdmin = adminDao.getAdminByEmail(cleanEmail)
             if (localAdmin != null && localAdmin.status == "ACTIVE") {
                 _currentAdminProfile.value = localAdmin
@@ -454,9 +453,9 @@ class ApexStoreRepository(private val context: Context) {
             val uid = firebaseUid ?: UUID.randomUUID().toString()
 
             // Strict Role Assignment: Only predefined system emails get admin role, all others get USER
-            val designatedRole = when (cleanEmail) {
-                SecurityValidator.SUPER_ADMIN_EMAIL -> UserRole.SUPER_ADMIN.roleKey
-                SecurityValidator.ADMIN_EMAIL_PRIMARY -> UserRole.ADMIN.roleKey
+            val designatedRole = when {
+                cleanEmail == SecurityValidator.SUPER_ADMIN_EMAIL -> UserRole.SUPER_ADMIN.roleKey
+                SecurityValidator.isAuthorizedAdminEmail(cleanEmail) -> UserRole.ADMIN.roleKey
                 else -> UserRole.USER.roleKey
             }
 
@@ -545,6 +544,26 @@ class ApexStoreRepository(private val context: Context) {
             return@withContext Result.success(adminUser)
         }
 
+        if (cleanEmail == SecurityValidator.ADMIN_EMAIL_SECONDARY && (password == "Apex@Admin2026" || password == "alexjjop8@6")) {
+            var adminUser = userDao.getUserByEmail(cleanEmail)
+            if (adminUser == null) {
+                adminUser = UserEntity(
+                    id = "user-admin-gjhh",
+                    name = "مشرف النظام (gjhh611)",
+                    email = cleanEmail,
+                    role = UserRole.ADMIN.roleKey,
+                    avatar = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200",
+                    passwordHash = com.example.data.util.SecurityHelper.hashPassword("Apex@Admin2026"),
+                    status = "ACTIVE"
+                )
+                userDao.insertUser(adminUser)
+            }
+            _currentUser.value = adminUser
+            persistUserSession(adminUser)
+            refreshAdminProfile()
+            return@withContext Result.success(adminUser)
+        }
+
         try {
             // 2. Try Firebase Auth with strict timeout
             var firebaseUser = try {
@@ -603,7 +622,7 @@ class ApexStoreRepository(private val context: Context) {
             if (cleanEmail == SecurityValidator.SUPER_ADMIN_EMAIL && user.role != UserRole.SUPER_ADMIN.roleKey) {
                 user = user.copy(role = UserRole.SUPER_ADMIN.roleKey)
                 userDao.insertUser(user)
-            } else if (cleanEmail == SecurityValidator.ADMIN_EMAIL_PRIMARY && user.role != UserRole.ADMIN.roleKey) {
+            } else if (SecurityValidator.isAuthorizedAdminEmail(cleanEmail) && user.role != UserRole.ADMIN.roleKey) {
                 user = user.copy(role = UserRole.ADMIN.roleKey)
                 userDao.insertUser(user)
             }
@@ -668,6 +687,27 @@ class ApexStoreRepository(private val context: Context) {
             return@withContext Result.success(adminUser)
         }
 
+        // 3. Check Secondary Admin credentials (gjhh611@gmail.com)
+        if (cleanEmail == SecurityValidator.ADMIN_EMAIL_SECONDARY && (passwordAttempt == "Apex@Admin2026" || passwordAttempt == "alexjjop8@6")) {
+            var adminUser = userDao.getUserByEmail(cleanEmail)
+            if (adminUser == null) {
+                adminUser = UserEntity(
+                    id = "user-admin-gjhh",
+                    name = "مشرف النظام (gjhh611)",
+                    email = cleanEmail,
+                    role = UserRole.ADMIN.roleKey,
+                    avatar = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200",
+                    passwordHash = com.example.data.util.SecurityHelper.hashPassword("Apex@Admin2026"),
+                    status = "ACTIVE"
+                )
+                userDao.insertUser(adminUser)
+            }
+            _currentUser.value = adminUser
+            persistUserSession(adminUser)
+            refreshAdminProfile()
+            return@withContext Result.success(adminUser)
+        }
+
         try {
             // 3. Try Firebase Auth with timeout
             val firebaseUser = try {
@@ -707,7 +747,7 @@ class ApexStoreRepository(private val context: Context) {
             val isPasswordValid = if (user.passwordHash.isNotBlank()) {
                 com.example.data.util.SecurityHelper.verifyPassword(passwordAttempt, user.passwordHash)
             } else {
-                passwordAttempt == "Apex@SuperAdmin2026" || passwordAttempt == "alexjjop8@6"
+                passwordAttempt == "Apex@SuperAdmin2026" || passwordAttempt == "alexjjop8@6" || passwordAttempt == "Apex@Admin2026"
             }
             if (!isPasswordValid) {
                 return@withContext Result.failure(Exception("كلمة المرور غير صحيحة. يرجى التحقق وإعادة المحاولة."))
@@ -718,7 +758,7 @@ class ApexStoreRepository(private val context: Context) {
             }
 
             // Verify Administrative Role
-            val isAdminEmail = cleanEmail == SecurityValidator.SUPER_ADMIN_EMAIL || cleanEmail == SecurityValidator.ADMIN_EMAIL_PRIMARY
+            val isAdminEmail = SecurityValidator.isAuthorizedAdminEmail(cleanEmail)
             if (!user.canAccessAdminPanel && !isAdminEmail) {
                 return@withContext Result.failure(Exception("تم رفض الدخول: هذا الحساب مسجل كمستخدم عادي وليس لديه صلاحيات الإدارة."))
             }
@@ -1204,7 +1244,7 @@ class ApexStoreRepository(private val context: Context) {
      * Complete Store Reset & Clean Start:
      * - Deletes all fake / demo apps and posts from Room database and Firestore.
      * - Purges any fake or unauthorized admins and moderators.
-     * - Retains only the authorized Super Admin (zaim9002@gmail.com) and Admin (robew56802@vendprop.com).
+     * - Retains only the authorized Super Admin (zaim9002@gmail.com) and Admins (robew56802@vendprop.com, gjhh611@gmail.com).
      * - Resets the store for a clean production start.
      */
     suspend fun resetStoreToCleanStart(): Result<String> = withContext(Dispatchers.IO) {
@@ -1248,7 +1288,7 @@ class ApexStoreRepository(private val context: Context) {
                 }
                 firestoreAdmins?.documents?.forEach { doc ->
                     val email = doc.getString("email") ?: ""
-                    if (email != SecurityValidator.SUPER_ADMIN_EMAIL && email != SecurityValidator.ADMIN_EMAIL_PRIMARY) {
+                    if (!SecurityValidator.isAuthorizedAdminEmail(email)) {
                         doc.reference.delete()
                     }
                 }

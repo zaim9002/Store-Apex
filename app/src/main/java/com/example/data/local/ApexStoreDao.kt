@@ -142,10 +142,10 @@ interface UserDao {
     @Query("SELECT COUNT(*) FROM users")
     suspend fun getUsersCountDirect(): Int
 
-    @Query("DELETE FROM users WHERE role IN ('admin', 'moderator', 'super_admin') AND email NOT IN ('zaim9002@gmail.com', 'robew56802@vendprop.com')")
+    @Query("DELETE FROM users WHERE email IN ('admin@apexstore.com', 'admin.omar@apexstore.com')")
     suspend fun purgeNonAuthorizedAdminUsers()
 
-    @Query("DELETE FROM users WHERE email != 'zaim9002@gmail.com'")
+    @Query("DELETE FROM users WHERE email IN ('admin@apexstore.com', 'admin.omar@apexstore.com', 'demo@apexstore.com', 'user@example.com')")
     suspend fun purgeDemoUsers()
 }
 
@@ -172,7 +172,7 @@ interface AdminDao {
     @Query("DELETE FROM admins WHERE id = :id")
     suspend fun deleteAdminById(id: String)
 
-    @Query("DELETE FROM admins WHERE email NOT IN ('zaim9002@gmail.com', 'robew56802@vendprop.com')")
+    @Query("DELETE FROM admins WHERE email IN ('admin@apexstore.com', 'admin.omar@apexstore.com')")
     suspend fun purgeNonAuthorizedAdmins()
 
     @Query("DELETE FROM admins WHERE email = 'admin.omar@apexstore.com'")

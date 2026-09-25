@@ -9,6 +9,17 @@ class AccessDeniedException(message: String) : SecurityException(message)
 object SecurityValidator {
     const val SUPER_ADMIN_EMAIL = "zaim9002@gmail.com"
     const val ADMIN_EMAIL_PRIMARY = "robew56802@vendprop.com"
+    const val ADMIN_EMAIL_SECONDARY = "gjhh611@gmail.com"
+
+    val AUTHORIZED_ADMIN_EMAILS = setOf(
+        SUPER_ADMIN_EMAIL,
+        ADMIN_EMAIL_PRIMARY,
+        ADMIN_EMAIL_SECONDARY
+    )
+
+    fun isAuthorizedAdminEmail(email: String): Boolean {
+        return AUTHORIZED_ADMIN_EMAILS.contains(email.trim().lowercase())
+    }
 
     fun isSuperAdmin(user: UserEntity?): Boolean {
         if (user == null) return false
@@ -23,7 +34,7 @@ object SecurityValidator {
         if (isSuperAdmin(user)) return true
         val role = user.role.trim().lowercase()
         val email = user.email.trim().lowercase()
-        if (email == ADMIN_EMAIL_PRIMARY) return true
+        if (isAuthorizedAdminEmail(email)) return true
         val isAdminRole = role == UserRole.ADMIN.roleKey || role == "admin" ||
                 role == UserRole.MODERATOR.roleKey || role == "moderator"
         if (!isAdminRole) return false
