@@ -11,33 +11,39 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SwitchAccount
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -49,14 +55,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -85,37 +95,48 @@ fun AccountScreen(
     modifier: Modifier = Modifier
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
-    val currentAdminProfile by viewModel.currentAdminProfile.collectAsState()
     val scrollState = rememberScrollState()
+
+    val isGuest = currentUser.email == "guest@apexstore.com" || currentUser.id == "guest_user"
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(ApexBackground)
             .verticalScroll(scrollState)
-            .padding(bottom = 90.dp)
+            .imePadding()
+            .padding(bottom = 96.dp)
     ) {
-        // Top Header
-        Text(
-            text = "الملف الشخصي والحساب",
-            color = ApexTextPrimary,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(16.dp)
-        )
-
-        // User Profile Card
-        Card(
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = ApexSurfaceCard),
-            border = androidx.compose.foundation.BorderStroke(1.dp, ApexBorder),
+        // Top Header matching Reference Image
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Text(
+                text = "حسابي",
+                color = ApexTextPrimary,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        // Profile Avatar & Information (matching Reference Image profile style)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(86.dp)
+                    .clip(CircleShape)
+                    .background(ApexSurfaceVariant)
+                    .border(2.5.dp, ApexPrimary, CircleShape),
+                contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
@@ -124,60 +145,64 @@ fun AccountScreen(
                         .build(),
                     contentDescription = currentUser.name,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .border(2.dp, ApexPrimary, CircleShape)
+                    modifier = Modifier.fillMaxSize()
                 )
+            }
 
-                Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = currentUser.name,
-                        color = ApexTextPrimary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = currentUser.email,
-                        color = ApexTextSecondary,
-                        fontSize = 12.sp
-                    )
+            Text(
+                text = currentUser.name,
+                color = ApexTextPrimary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = currentUser.email,
+                color = ApexTextSecondary,
+                fontSize = 13.sp
+            )
 
-                    // Role Badge
-                    val (roleColor, roleText) = when {
-                        currentUser.isSuperAdmin -> ApexAmber to "المدير العام (Super Admin)"
-                        currentUser.isAdmin -> ApexSecondary to "مشرف متجر (Admin)"
-                        currentUser.isModerator -> ApexTertiary to "مشرف محتوى (Moderator)"
-                        else -> ApexPrimary to "مستخدم عادي (User)"
-                    }
+            Spacer(modifier = Modifier.height(8.dp))
 
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(roleColor.copy(alpha = 0.15f))
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = roleText,
-                            color = roleColor,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+            // Role Badge
+            val (roleColor, roleText) = when {
+                currentUser.isSuperAdmin -> ApexAmber to "المدير العام (Super Admin)"
+                currentUser.isAdmin -> ApexSecondary to "مشرف متجر (Admin)"
+                currentUser.isModerator -> ApexTertiary to "مشرف محتوى (Moderator)"
+                else -> ApexPrimary to "مستخدم عادي (User)"
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(roleColor.copy(alpha = 0.15f))
+                    .border(1.dp, roleColor.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = roleText,
+                    color = roleColor,
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
 
-        // Admin Dashboard or Login Card
         Spacer(modifier = Modifier.height(16.dp))
+
+        // If Guest: Show Authentication Card (Login & Register)
+        if (isGuest) {
+            UserAuthCard(viewModel = viewModel)
+            Spacer(modifier = Modifier.height(20.dp))
+        }
+
+        // If Admin or Super Admin: Prominent Admin Dashboard Entry
         if (currentUser.canAccessAdminPanel) {
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = ApexSecondary.copy(alpha = 0.12f)),
+                colors = CardDefaults.cardColors(containerColor = ApexSecondary.copy(alpha = 0.14f)),
                 border = androidx.compose.foundation.BorderStroke(1.dp, ApexSecondary.copy(alpha = 0.5f)),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -216,169 +241,105 @@ fun AccountScreen(
                         Text(
                             text = "إدارة التطبيقات، المشرفين، سجل النشاط، والإحصائيات",
                             color = ApexTextSecondary,
-                            fontSize = 11.sp
+                            fontSize = 11.5.sp
                         )
                     }
 
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack, // in RTL ArrowBack points Left
                         contentDescription = null,
                         tint = ApexSecondary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
             }
-        } else {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = ApexSurfaceCard),
-                border = androidx.compose.foundation.BorderStroke(1.dp, ApexBorder.copy(alpha = 0.5f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .clickable { onNavigateTab(StoreNavigationTab.ADMIN_LOGIN) }
-                    .testTag("account_admin_login_entry_button")
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(ApexSurfaceVariant),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AdminPanelSettings,
-                            contentDescription = null,
-                            tint = ApexTextSecondary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(14.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "تسجيل دخول الإدارة (Admin Login)",
-                            color = ApexTextPrimary,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "الدخول الآمن للمشرفين والمدير العام لإدارة المتجر",
-                            color = ApexTextSecondary,
-                            fontSize = 11.sp
-                        )
-                    }
-
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = ApexTextMuted,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Real User Authentication Portal (Login / Register / Logout)
-        Spacer(modifier = Modifier.height(20.dp))
-        val isGuest = currentUser.email == "guest@apexstore.com" || currentUser.id == "guest_user"
-
-        if (isGuest) {
-            UserAuthCard(viewModel = viewModel)
-        } else {
-            // Logged in User Section
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = ApexSurfaceCard),
-                border = androidx.compose.foundation.BorderStroke(1.dp, ApexBorder.copy(alpha = 0.4f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = "حالة الجلسة: نشطة ومحمية",
-                                color = ApexTertiary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "مسجل بـ: ${currentUser.email}",
-                                color = ApexTextSecondary,
-                                fontSize = 11.sp
-                            )
-                        }
-
-                        Button(
-                            onClick = { viewModel.logout() },
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = ApexRed.copy(alpha = 0.15f),
-                                contentColor = ApexRed
-                            ),
-                            modifier = Modifier.height(34.dp).testTag("account_logout_button")
-                        ) {
-                            Text(text = "تسجيل خروج", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-        }
-
-        // User Navigation Actions
-        Spacer(modifier = Modifier.height(20.dp))
-        Text(
-            text = "الخدمات والإعدادات",
-            color = ApexTextPrimary,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
+        // Services & Menu List matching the Reference Design
         Card(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(containerColor = ApexSurfaceCard),
-            border = androidx.compose.foundation.BorderStroke(1.dp, ApexBorder.copy(alpha = 0.4f)),
+            border = androidx.compose.foundation.BorderStroke(1.dp, ApexBorder.copy(alpha = 0.5f)),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         ) {
             Column {
                 AccountOptionRow(
-                    icon = Icons.Default.Download,
-                    title = "سجل التحميلات",
-                    subtitle = "عرض وتثبيت الحزم التي تم تحميلها",
-                    onClick = { onNavigateTab(StoreNavigationTab.DOWNLOADS) }
+                    icon = Icons.Default.Person,
+                    title = "الملف الشخصي",
+                    subtitle = if (isGuest) "تسجيل الدخول أو إنشاء حساب جديد" else currentUser.email,
+                    onClick = {
+                        if (!isGuest) {
+                            // Already logged in
+                        }
+                    }
+                )
+                AccountOptionRow(
+                    icon = Icons.Default.Category,
+                    title = "التصنيفات",
+                    subtitle = "استكشاف التطبيقات والألعاب حسب الفئة",
+                    onClick = { onNavigateTab(StoreNavigationTab.CATEGORIES) }
                 )
                 AccountOptionRow(
                     icon = Icons.Default.Favorite,
-                    title = "التطبيقات المفضلة",
+                    title = "المفضلة",
                     subtitle = "قائمة التطبيقات والألعاب المحفوظة",
                     onClick = { onNavigateTab(StoreNavigationTab.FAVORITES) }
                 )
                 AccountOptionRow(
-                    icon = Icons.Default.Security,
-                    title = "الأمان والتحقق من الرتب",
-                    subtitle = "حماية مشددة وقواعد وصول صارمة Server-Side",
+                    icon = Icons.Default.Download,
+                    title = "سجل التحميلات",
+                    subtitle = "عرض وتثبيت الحزم التي تم تحميلها للجهاز",
+                    onClick = { onNavigateTab(StoreNavigationTab.DOWNLOADS) }
+                )
+                AccountOptionRow(
+                    icon = Icons.Default.Settings,
+                    title = "الإعدادات",
+                    subtitle = "اللغة، التحديثات التلقائية، والتخزين",
+                    onClick = {}
+                )
+                AccountOptionRow(
+                    icon = Icons.Default.HelpOutline,
+                    title = "المساعدة والدعم",
+                    subtitle = "الأسئلة الشائعة والتواصل مع الدعم الفني",
                     onClick = {}
                 )
                 AccountOptionRow(
                     icon = Icons.Default.Info,
-                    title = "حول متجر APEX STORE",
-                    subtitle = "الإصدار 1.0.0 (Production Ready)",
+                    title = "حول التطبيق",
+                    subtitle = "متجر APEX STORE الإصدار 1.0.0 (الرسمي)",
                     onClick = {}
+                )
+                if (isGuest) {
+                    AccountOptionRow(
+                        icon = Icons.Default.AdminPanelSettings,
+                        title = "تسجيل دخول الإدارة (Admin Login)",
+                        subtitle = "الدخول الآمن للمشرفين والمدير العام",
+                        onClick = { onNavigateTab(StoreNavigationTab.ADMIN_LOGIN) }
+                    )
+                }
+            }
+        }
+
+        // Logout Action Button (Matching Reference Image in elegant red)
+        if (!isGuest) {
+            Spacer(modifier = Modifier.height(28.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .clickable { viewModel.logout() }
+                    .padding(vertical = 12.dp)
+                    .testTag("account_logout_button"),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "تسجيل الخروج",
+                    color = ApexRed,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -391,128 +352,196 @@ private fun UserAuthCard(viewModel: ApexStoreViewModel) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     var authError by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
+    val focusManager = LocalFocusManager.current
+
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = ApexSurfaceCard),
         border = androidx.compose.foundation.BorderStroke(1.dp, ApexBorder.copy(alpha = 0.5f)),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Mode Selector
+        Column(modifier = Modifier.padding(18.dp)) {
+            // Mode Selector Tabs
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = { isRegisterMode = false; authError = null },
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (!isRegisterMode) ApexPrimary else ApexSurfaceVariant,
-                        contentColor = if (!isRegisterMode) ApexBackground else ApexTextSecondary
+                        contentColor = if (!isRegisterMode) Color.White else ApexTextSecondary
                     ),
-                    modifier = Modifier.weight(1f).height(38.dp)
+                    modifier = Modifier.weight(1f).height(42.dp)
                 ) {
-                    Text(text = "تسجيل الدخول", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "تسجيل الدخول", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
 
                 Button(
                     onClick = { isRegisterMode = true; authError = null },
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (isRegisterMode) ApexPrimary else ApexSurfaceVariant,
-                        contentColor = if (isRegisterMode) ApexBackground else ApexTextSecondary
+                        contentColor = if (isRegisterMode) Color.White else ApexTextSecondary
                     ),
-                    modifier = Modifier.weight(1f).height(38.dp)
+                    modifier = Modifier.weight(1f).height(42.dp)
                 ) {
-                    Text(text = "حساب جديد", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "حساب جديد", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             if (isRegisterMode) {
-                androidx.compose.material3.OutlinedTextField(
+                OutlinedTextField(
                     value = name,
                     onValueChange = { name = it; authError = null },
                     label = { Text("الاسم الكامل", fontSize = 12.sp) },
                     singleLine = true,
-                    shape = RoundedCornerShape(8.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ApexPrimary,
+                        unfocusedBorderColor = ApexBorder,
+                        focusedContainerColor = ApexSurfaceVariant,
+                        unfocusedContainerColor = ApexSurfaceVariant,
+                        focusedTextColor = ApexTextPrimary,
+                        unfocusedTextColor = ApexTextPrimary
+                    ),
                     modifier = Modifier.fillMaxWidth().testTag("user_register_name_input")
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
             }
 
-            CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
-                androidx.compose.material3.OutlinedTextField(
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                OutlinedTextField(
                     value = email,
                     onValueChange = { email = it; authError = null },
                     label = { Text("البريد الإلكتروني", fontSize = 12.sp) },
                     singleLine = true,
-                    shape = RoundedCornerShape(8.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ApexPrimary,
+                        unfocusedBorderColor = ApexBorder,
+                        focusedContainerColor = ApexSurfaceVariant,
+                        unfocusedContainerColor = ApexSurfaceVariant,
+                        focusedTextColor = ApexTextPrimary,
+                        unfocusedTextColor = ApexTextPrimary
+                    ),
                     modifier = Modifier.fillMaxWidth().testTag("user_auth_email_input")
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
-                androidx.compose.material3.OutlinedTextField(
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                OutlinedTextField(
                     value = password,
                     onValueChange = { password = it; authError = null },
                     label = { Text("كلمة المرور", fontSize = 12.sp) },
                     singleLine = true,
-                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                    shape = RoundedCornerShape(8.dp),
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(
+                                imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = null,
+                                tint = ApexTextMuted
+                            )
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ApexPrimary,
+                        unfocusedBorderColor = ApexBorder,
+                        focusedContainerColor = ApexSurfaceVariant,
+                        unfocusedContainerColor = ApexSurfaceVariant,
+                        focusedTextColor = ApexTextPrimary,
+                        unfocusedTextColor = ApexTextPrimary
+                    ),
                     modifier = Modifier.fillMaxWidth().testTag("user_auth_password_input")
                 )
             }
 
             val err = authError
             if (err != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = err, color = ApexRed, fontSize = 11.5.sp, fontWeight = FontWeight.Medium)
+                Spacer(modifier = Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(ApexRed.copy(alpha = 0.12f))
+                        .border(1.dp, ApexRed.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                        .padding(10.dp)
+                ) {
+                    Text(text = err, color = ApexRed, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = {
-                    if (email.isBlank() || password.isBlank()) {
-                        authError = "يرجى تعبئة جميع الحقول المطلوبة"
+                    if (email.isBlank()) {
+                        authError = "يرجى كتابة البريد الإلكتروني"
                         return@Button
                     }
+                    if (password.isBlank()) {
+                        authError = "يرجى كتابة كلمة المرور"
+                        return@Button
+                    }
+                    if (password.length < 6) {
+                        authError = "كلمة المرور يجب أن تكون 6 أحرف على الأقل"
+                        return@Button
+                    }
+                    focusManager.clearFocus()
                     isLoading = true
                     authError = null
+
                     if (isRegisterMode) {
                         viewModel.registerUser(name, email, password) { success, msg ->
                             isLoading = false
-                            if (!success) authError = msg
+                            if (!success) authError = msg ?: "تعذر إنشاء الحساب، يرجى المحاولة لاحقاً"
                         }
                     } else {
                         viewModel.loginUser(email, password) { success, msg ->
                             isLoading = false
-                            if (!success) authError = msg
+                            if (!success) authError = msg ?: "تعذر تسجيل الدخول، يرجى التحقق من البيانات"
                         }
                     }
                 },
                 enabled = !isLoading,
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ApexPrimary, contentColor = ApexBackground),
-                modifier = Modifier.fillMaxWidth().height(42.dp).testTag("user_auth_submit_button")
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ApexPrimary, contentColor = Color.White),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .testTag("user_auth_submit_button")
             ) {
                 if (isLoading) {
-                    androidx.compose.material3.CircularProgressIndicator(
-                        color = ApexBackground,
+                    CircularProgressIndicator(
+                        color = Color.White,
                         strokeWidth = 2.dp,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isRegisterMode) "جارٍ إنشاء الحساب..." else "جارٍ تسجيل الدخول...",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 } else {
                     Text(
                         text = if (isRegisterMode) "إنشاء الحساب الآن" else "تسجيل الدخول",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
+                        fontSize = 14.sp
                     )
                 }
             }
@@ -531,13 +560,13 @@ private fun AccountOptionRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .size(38.dp)
+                .clip(RoundedCornerShape(10.dp))
                 .background(ApexSurfaceVariant),
             contentAlignment = Alignment.Center
         ) {
@@ -545,28 +574,28 @@ private fun AccountOptionRow(
                 imageVector = icon,
                 contentDescription = null,
                 tint = ApexPrimary,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(20.dp)
             )
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(14.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
                 color = ApexTextPrimary,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp
+                fontSize = 13.5.sp
             )
             Text(
                 text = subtitle,
                 color = ApexTextSecondary,
-                fontSize = 11.sp
+                fontSize = 11.5.sp
             )
         }
 
         Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowBack, // In RTL arrow back points left/forward
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack, // In RTL arrow back points left
             contentDescription = null,
             tint = ApexTextMuted,
             modifier = Modifier.size(16.dp)

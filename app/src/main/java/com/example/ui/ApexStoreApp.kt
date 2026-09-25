@@ -28,12 +28,14 @@ import com.example.ui.screens.AdminDashboardScreen
 import com.example.ui.screens.AdminLoginScreen
 import com.example.ui.screens.AppDetailScreen
 import com.example.ui.screens.AppsScreen
+import com.example.ui.screens.CategoriesScreen
 import com.example.ui.screens.DownloadsScreen
 import com.example.ui.screens.FavoritesScreen
 import com.example.ui.screens.GamesScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.SearchScreen
 import com.example.ui.screens.SplashScreen
+import com.example.ui.screens.UpdatesScreen
 import com.example.ui.theme.ApexBackground
 import kotlinx.coroutines.flow.collectLatest
 
@@ -179,8 +181,10 @@ fun ApexStoreApp(
             ) { tab ->
                 when (tab) {
                     StoreNavigationTab.HOME -> HomeScreen(viewModel = viewModel, onNavigateTab = { viewModel.navigateTo(it) })
-                    StoreNavigationTab.APPS -> AppsScreen(viewModel = viewModel)
                     StoreNavigationTab.GAMES -> GamesScreen(viewModel = viewModel)
+                    StoreNavigationTab.APPS -> AppsScreen(viewModel = viewModel)
+                    StoreNavigationTab.UPDATES -> UpdatesScreen(viewModel = viewModel, onBackClick = { viewModel.handleBackPress() })
+                    StoreNavigationTab.CATEGORIES -> CategoriesScreen(viewModel = viewModel, onBackClick = { viewModel.handleBackPress() })
                     StoreNavigationTab.FAVORITES -> FavoritesScreen(viewModel = viewModel)
                     StoreNavigationTab.ACCOUNT -> AccountScreen(viewModel = viewModel, onNavigateTab = { viewModel.navigateTo(it) })
                     else -> HomeScreen(viewModel = viewModel, onNavigateTab = { viewModel.navigateTo(it) })

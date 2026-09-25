@@ -17,22 +17,36 @@ object InitialData {
             status = "ACTIVE"
         ),
         UserEntity(
-            id = "user-admin-content",
-            name = "مشرف المتجر المعتمد (Admin)",
-            email = "admin@apexstore.com",
+            id = "user-admin-robew",
+            name = "مشرف النظام (Admin)",
+            email = "robew56802@vendprop.com",
             role = UserRole.ADMIN.roleKey,
             avatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200",
-            passwordHash = com.example.data.util.SecurityHelper.hashPassword("ApexAdmin@2026"),
+            passwordHash = com.example.data.util.SecurityHelper.hashPassword("alexjjop8@6"),
             status = "ACTIVE"
         )
     )
 
     val admins = listOf(
         AdminEntity(
-            id = "admin-content-profile",
-            userId = "user-admin-content",
-            email = "admin@apexstore.com",
-            name = "مشرف المتجر المعتمد (Admin)",
+            id = "admin-super-profile",
+            userId = "user-super-admin",
+            email = "zaim9002@gmail.com",
+            name = "المدير العام (Super Admin)",
+            role = UserRole.SUPER_ADMIN.roleKey,
+            canAddApp = true,
+            canEditApp = true,
+            canDeleteApp = true,
+            canPublish = true,
+            canUploadFiles = true,
+            canManageAdmins = true,
+            status = "ACTIVE"
+        ),
+        AdminEntity(
+            id = "admin-robew-profile",
+            userId = "user-admin-robew",
+            email = "robew56802@vendprop.com",
+            name = "مشرف النظام (Admin)",
             role = UserRole.ADMIN.roleKey,
             canAddApp = true,
             canEditApp = true,

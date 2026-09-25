@@ -28,8 +28,10 @@ import java.util.UUID
 
 enum class StoreNavigationTab {
     HOME,
-    APPS,
     GAMES,
+    APPS,
+    UPDATES,
+    CATEGORIES,
     FAVORITES,
     DOWNLOADS,
     ACCOUNT,

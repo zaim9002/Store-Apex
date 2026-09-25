@@ -22,11 +22,15 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -43,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -134,6 +139,71 @@ fun HomeScreen(
                 onOpenApp = { app -> viewModel.openAppDetail(app) },
                 onDownload = { app -> viewModel.startDownload(app) }
             )
+        }
+
+        // 2.5 Quick Category Shortcuts (matching Reference Image)
+        item {
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                QuickShortcutButton(
+                    title = "تحديثات",
+                    icon = Icons.Default.SystemUpdate,
+                    color = Color(0xFF10B981),
+                    onClick = { onNavigateTab(StoreNavigationTab.UPDATES) },
+                    modifier = Modifier.weight(1f)
+                )
+                QuickShortcutButton(
+                    title = "ألعاب",
+                    icon = Icons.Default.SportsEsports,
+                    color = Color(0xFF3B82F6),
+                    onClick = { onNavigateTab(StoreNavigationTab.GAMES) },
+                    modifier = Modifier.weight(1f)
+                )
+                QuickShortcutButton(
+                    title = "تطبيقات",
+                    icon = Icons.Default.Apps,
+                    color = Color(0xFF8B5CF6),
+                    onClick = { onNavigateTab(StoreNavigationTab.APPS) },
+                    modifier = Modifier.weight(1f)
+                )
+                QuickShortcutButton(
+                    title = "تصنيفات",
+                    icon = Icons.Default.Category,
+                    color = Color(0xFFEC4899),
+                    onClick = { onNavigateTab(StoreNavigationTab.CATEGORIES) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        // 2.6 Section: Most Downloaded (الأكثر تحميلاً) - 4-column compact items with Install button
+        item {
+            Spacer(modifier = Modifier.height(20.dp))
+            SectionHeader(
+                title = "الأكثر تحميلاً",
+                actionTitle = "المزيد",
+                onActionClick = { onNavigateTab(StoreNavigationTab.APPS) }
+            )
+            val topApps = if (mostDownloaded.isNotEmpty()) mostDownloaded.take(8) else latestApps.take(8)
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(topApps) { app ->
+                    val downloadItem = downloads.find { it.appId == app.id }
+                    CompactTopAppCard(
+                        app = app,
+                        onClick = { viewModel.openAppDetail(app) },
+                        onInstallClick = { viewModel.startDownload(app) },
+                        downloadState = downloadItem
+                    )
+                }
+            }
         }
 
         // 3. Section: Featured Apps (التطبيقات المميزة)
@@ -579,6 +649,153 @@ fun SectionHeader(
                     tint = ApexPrimary,
                     modifier = Modifier.size(14.dp)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickShortcutButton(
+    title: String,
+    icon: ImageVector,
+    color: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = ApexSurfaceCard),
+        border = androidx.compose.foundation.BorderStroke(1.dp, ApexBorder.copy(alpha = 0.5f)),
+        modifier = modifier
+            .height(74.dp)
+            .clickable { onClick() }
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(color.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = color,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = title,
+                color = ApexTextPrimary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun CompactTopAppCard(
+    app: AppEntity,
+    onClick: () -> Unit,
+    onInstallClick: () -> Unit,
+    downloadState: com.example.data.model.DownloadEntity? = null
+) {
+    val isDownloading = downloadState?.status == com.example.data.model.DownloadStatus.DOWNLOADING.name
+    val isCompleted = downloadState?.status == com.example.data.model.DownloadStatus.COMPLETED.name
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = ApexSurfaceCard),
+        border = androidx.compose.foundation.BorderStroke(1.dp, ApexBorder.copy(alpha = 0.5f)),
+        modifier = Modifier
+            .width(84.dp)
+            .clickable { onClick() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(app.iconUrl.ifBlank { "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150" })
+                    .crossfade(true)
+                    .build(),
+                contentDescription = app.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(ApexSurfaceVariant)
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = app.name,
+                color = ApexTextPrimary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = ApexAmber,
+                    modifier = Modifier.size(10.dp)
+                )
+                Spacer(modifier = Modifier.width(2.dp))
+                Text(
+                    text = String.format("%.1f", app.rating),
+                    color = ApexTextSecondary,
+                    fontSize = 10.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Button(
+                onClick = onInstallClick,
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isCompleted) ApexTertiary else ApexPrimary,
+                    contentColor = Color.White
+                ),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(28.dp)
+            ) {
+                if (isDownloading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        strokeWidth = 1.5.dp,
+                        modifier = Modifier.size(10.dp)
+                    )
+                } else {
+                    Text(
+                        text = if (isCompleted) "تم" else "تثبيت",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

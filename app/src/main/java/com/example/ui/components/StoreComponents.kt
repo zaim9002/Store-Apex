@@ -469,7 +469,7 @@ fun AppGridCard(
                     contentColor = when {
                         isCompleted -> Color.White
                         isDownloading -> ApexPrimary
-                        else -> ApexBackground
+                        else -> Color.White
                     }
                 ),
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
@@ -499,22 +499,16 @@ fun AppGridCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "تم التثبيت ✓",
+                        text = "تثبيت ✓",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1
                     )
                 } else {
-                    Icon(
-                        imageVector = Icons.Default.Download,
-                        contentDescription = "تحميل",
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "تحميل ⬇",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.ExtraBold,
+                        text = "تثبيت",
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1
                     )
                 }
@@ -730,23 +724,13 @@ fun ApexBottomBar(
         tonalElevation = 8.dp,
         modifier = modifier.border(width = 1.dp, color = ApexBorder.copy(alpha = 0.35f))
     ) {
-        val items = mutableListOf(
+        val items = listOf(
             NavigationItemData(StoreNavigationTab.HOME, "الرئيسية", Icons.Default.Home, Icons.Outlined.Home),
-            NavigationItemData(StoreNavigationTab.APPS, "تطبيقات", Icons.Default.Widgets, Icons.Outlined.Widgets),
-            NavigationItemData(StoreNavigationTab.GAMES, "ألعاب", Icons.Default.Games, Icons.Outlined.Games),
-            NavigationItemData(StoreNavigationTab.FAVORITES, "المفضلة", Icons.Default.Favorite, Icons.Outlined.FavoriteBorder),
-            NavigationItemData(StoreNavigationTab.ACCOUNT, "حسابي", Icons.Default.Person, Icons.Outlined.Person)
+            NavigationItemData(StoreNavigationTab.GAMES, "الألعاب", Icons.Default.Games, Icons.Outlined.Games),
+            NavigationItemData(StoreNavigationTab.APPS, "التطبيقات", Icons.Default.Widgets, Icons.Outlined.Widgets),
+            NavigationItemData(StoreNavigationTab.UPDATES, "التحديثات", Icons.Default.Download, Icons.Outlined.Download),
+            NavigationItemData(StoreNavigationTab.ACCOUNT, "المزيد", Icons.Default.Person, Icons.Outlined.Person)
         )
-
-        // For Admin users, replace Favorites or insert Admin Dashboard
-        if (isAdmin) {
-            items[3] = NavigationItemData(
-                StoreNavigationTab.ADMIN_DASHBOARD,
-                "لوحة الإدارة",
-                Icons.Default.AdminPanelSettings,
-                Icons.Default.AdminPanelSettings
-            )
-        }
 
         items.forEach { item ->
             val isSelected = currentTab == item.tab

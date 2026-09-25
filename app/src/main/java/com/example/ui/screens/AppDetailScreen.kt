@@ -249,7 +249,7 @@ fun AppDetailScreen(
                                         shape = RoundedCornerShape(12.dp),
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = ApexPrimary,
-                                            contentColor = ApexBackground
+                                            contentColor = Color.White
                                         ),
                                         modifier = Modifier
                                             .weight(1f)

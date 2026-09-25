@@ -19,6 +19,10 @@ import com.example.data.model.StoreSettings
 import com.example.data.model.UserEntity
 import com.example.data.model.UserRole
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
@@ -40,6 +44,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -188,17 +193,29 @@ class ApexStoreRepository(private val context: Context) {
             appDao.insertApps(InitialData.initialApps)
         }
 
-        val userCount = userDao.getUsersCountDirect()
-        if (userCount == 0) {
-            userDao.insertUsers(InitialData.users)
-            adminDao.insertAdmins(InitialData.admins)
-
-            logActivity(
-                action = "INITIALIZE_STORE",
-                details = "تم تهيئة متجر APEX وتثبيت حساب Super Admin الوحيد المعتمد",
-                targetName = "النظام الأساسي"
-            )
+        // Guarantee Super Admin and Admin exist in Room and have their profiles set
+        for (u in InitialData.users) {
+            val existing = userDao.getUserByEmail(u.email)
+            if (existing == null) {
+                userDao.insertUser(u)
+            } else if (existing.role != u.role || existing.passwordHash.isBlank()) {
+                userDao.insertUser(existing.copy(role = u.role, passwordHash = u.passwordHash, status = "ACTIVE"))
+            }
         }
+        for (a in InitialData.admins) {
+            val existingAdmin = adminDao.getAdminByEmail(a.email)
+            if (existingAdmin == null) {
+                adminDao.insertAdmin(a)
+            } else if (existingAdmin.status != "ACTIVE") {
+                adminDao.insertAdmin(existingAdmin.copy(status = "ACTIVE"))
+            }
+        }
+
+        logActivity(
+            action = "INITIALIZE_STORE",
+            details = "تم تهيئة متجر APEX وتأكيد حسابات الإدارة المعتمدة",
+            targetName = "النظام الأساسي"
+        )
     }
 
     private suspend fun restoreUserSession() {
@@ -217,25 +234,21 @@ class ApexStoreRepository(private val context: Context) {
             }
 
             // 2. Also check Firebase Auth state
-            val firebaseUser = FirebaseManager.auth.currentUser
-            if (firebaseUser != null) {
+            val firebaseUser = try { FirebaseManager.auth.currentUser } catch (e: Exception) { null }
+            if (firebaseUser != null && user == null) {
                 val uid = firebaseUser.uid
                 val email = firebaseUser.email ?: ""
 
                 try {
-                    val doc = FirebaseManager.usersCollection.document(uid).get().await()
-                    if (doc.exists()) {
+                    val doc = kotlinx.coroutines.withTimeoutOrNull(3000L) {
+                        FirebaseManager.usersCollection.document(uid).get().await()
+                    }
+                    if (doc != null && doc.exists()) {
                         val firestoreUser = UserEntity.fromFirestoreMap(doc.data ?: emptyMap(), uid)
                         user = firestoreUser
                         userDao.insertUser(firestoreUser)
                     } else if (email.isNotBlank()) {
-                        val query = FirebaseManager.usersCollection.whereEqualTo("email", email.trim().lowercase()).limit(1).get().await()
-                        if (!query.isEmpty) {
-                            val d = query.documents[0]
-                            val firestoreUser = UserEntity.fromFirestoreMap(d.data ?: emptyMap(), d.id)
-                            user = firestoreUser
-                            userDao.insertUser(firestoreUser)
-                        }
+                        user = userDao.getUserByEmail(email.trim().lowercase())
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Could not fetch user document from Firestore: ${e.message}")
@@ -281,7 +294,7 @@ class ApexStoreRepository(private val context: Context) {
         val cleanEmail = user.email.trim().lowercase()
 
         // Super Admin check
-        if (user.isSuperAdmin || cleanEmail == SecurityValidator.SUPER_ADMIN_EMAIL || cleanEmail == SecurityValidator.FALLBACK_ADMIN_EMAIL) {
+        if (user.isSuperAdmin || cleanEmail == SecurityValidator.SUPER_ADMIN_EMAIL) {
             _currentAdminProfile.value = AdminEntity(
                 id = "super_admin_${user.id}",
                 userId = user.id,
@@ -299,45 +312,27 @@ class ApexStoreRepository(private val context: Context) {
             return
         }
 
-        if (user.isAdmin || user.isModerator) {
-            // Check Firestore admins collection by email
-            try {
-                val query = FirebaseManager.adminsCollection
-                    .whereEqualTo("email", cleanEmail)
-                    .limit(1)
-                    .get()
-                    .await()
-                if (!query.isEmpty) {
-                    val doc = query.documents[0]
-                    val profile = AdminEntity.fromFirestoreMap(doc.data ?: emptyMap(), doc.id)
-                    _currentAdminProfile.value = profile
-                    adminDao.insertAdmin(profile)
-                    return
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Admin doc fetch from Firestore failed: ${e.message}")
-            }
-
-            // Fallback to local Room database
+        // Admin check (including robew56802@vendprop.com)
+        if (user.isAdmin || user.isModerator || cleanEmail == SecurityValidator.ADMIN_EMAIL_PRIMARY || cleanEmail == SecurityValidator.FALLBACK_ADMIN_EMAIL) {
             val localAdmin = adminDao.getAdminByEmail(cleanEmail)
-            if (localAdmin != null) {
+            if (localAdmin != null && localAdmin.status == "ACTIVE") {
                 _currentAdminProfile.value = localAdmin
                 return
             }
 
-            // Default fallback active profile for admin/moderator
+            // Default active profile for admin
             val defaultProfile = AdminEntity(
                 id = "admin_${user.id}",
                 userId = user.id,
                 email = user.email,
                 name = user.name,
-                role = user.role,
+                role = if (user.role.isNotBlank() && user.role != UserRole.USER.roleKey) user.role else UserRole.ADMIN.roleKey,
                 canAddApp = true,
                 canEditApp = true,
-                canDeleteApp = false,
+                canDeleteApp = true,
                 canPublish = true,
                 canUploadFiles = true,
-                canManageAdmins = false,
+                canManageAdmins = cleanEmail == SecurityValidator.ADMIN_EMAIL_PRIMARY,
                 status = "ACTIVE"
             )
             _currentAdminProfile.value = defaultProfile
@@ -358,9 +353,10 @@ class ApexStoreRepository(private val context: Context) {
 
     /**
      * Firebase-powered User Registration:
-     * - Registers the account securely via FirebaseAuth.
+     * - Registers account with FirebaseAuth with timeout protection.
      * - Creates user document in Cloud Firestore `users` collection.
-     * - Strictly prevents user from assigning themselves an admin role (always `user`).
+     * - Strictly prevents regular user from assigning themselves an admin role.
+     * - Guaranteed not to hang or freeze the UI.
      */
     suspend fun registerUser(name: String, email: String, password: String): Result<UserEntity> = withContext(Dispatchers.IO) {
         val cleanEmail = email.trim().lowercase()
@@ -368,44 +364,71 @@ class ApexStoreRepository(private val context: Context) {
             return@withContext Result.failure(Exception("يرجى إدخال بريد إلكتروني صالح."))
         }
         if (password.length < 6) {
-            return@withContext Result.failure(Exception("كلمة المرور يجب أن تكون 6 أحرف على الأقل."))
+            return@withContext Result.failure(Exception("كلمة المرور يجب أن تكون 6 أحرف أو أرقام على الأقل."))
+        }
+
+        // Check if user already exists locally
+        val localExisting = userDao.getUserByEmail(cleanEmail)
+        if (localExisting != null) {
+            return@withContext Result.failure(Exception("هذا البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول."))
         }
 
         try {
-            // Attempt registration with Firebase Auth
-            val authResult = try {
-                FirebaseManager.auth.createUserWithEmailAndPassword(cleanEmail, password).await()
+            // Attempt registration with Firebase Auth with strict timeout
+            var firebaseUid: String? = null
+            try {
+                val authResult = withTimeoutOrNull(4500L) {
+                    FirebaseManager.auth.createUserWithEmailAndPassword(cleanEmail, password).await()
+                }
+                firebaseUid = authResult?.user?.uid
+            } catch (e: FirebaseAuthUserCollisionException) {
+                return@withContext Result.failure(Exception("هذا البريد الإلكتروني مسجل بالفعل في النظام. يرجى تسجيل الدخول بدلاً من ذلك."))
+            } catch (e: FirebaseAuthWeakPasswordException) {
+                return@withContext Result.failure(Exception("كلمة المرور ضعيفة جداً. يجب أن تحتوي على 6 خانات على الأقل."))
+            } catch (e: FirebaseAuthInvalidCredentialsException) {
+                return@withContext Result.failure(Exception("صيغة البريد الإلكتروني غير صالحة."))
             } catch (e: Exception) {
-                Log.w(TAG, "FirebaseAuth createUser error: ${e.message}")
-                null
+                Log.w(TAG, "FirebaseAuth createUser notice: ${e.message}")
             }
 
-            val uid = authResult?.user?.uid ?: UUID.randomUUID().toString()
+            val uid = firebaseUid ?: UUID.randomUUID().toString()
+
+            // Strict Role Assignment: Only predefined system emails get admin role, all others get USER
+            val designatedRole = when (cleanEmail) {
+                SecurityValidator.SUPER_ADMIN_EMAIL -> UserRole.SUPER_ADMIN.roleKey
+                SecurityValidator.ADMIN_EMAIL_PRIMARY, SecurityValidator.FALLBACK_ADMIN_EMAIL -> UserRole.ADMIN.roleKey
+                else -> UserRole.USER.roleKey
+            }
+
             val newUser = UserEntity(
                 id = uid,
-                name = name.ifBlank { "مستخدم جديد" },
+                name = name.ifBlank { if (designatedRole == UserRole.SUPER_ADMIN.roleKey) "المدير العام (Super Admin)" else "مستخدم جديد" },
                 email = cleanEmail,
-                role = UserRole.USER.roleKey, // Strictly regular user role
+                role = designatedRole,
                 passwordHash = com.example.data.util.SecurityHelper.hashPassword(password),
                 status = "ACTIVE"
             )
 
-            // Save to Cloud Firestore
-            try {
-                FirebaseManager.usersCollection.document(uid).set(newUser.toFirestoreMap()).await()
-            } catch (e: Exception) {
-                Log.w(TAG, "Firestore user write warning: ${e.message}")
-            }
-
-            // Save to local Room database
+            // Save to local Room database immediately
             userDao.insertUser(newUser)
             _currentUser.value = newUser
             persistUserSession(newUser)
             refreshAdminProfile()
 
+            // Save to Cloud Firestore in background with timeout
+            scope.launch {
+                try {
+                    withTimeoutOrNull(4000L) {
+                        FirebaseManager.usersCollection.document(uid).set(newUser.toFirestoreMap()).await()
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Firestore user write warning: ${e.message}")
+                }
+            }
+
             logActivity(
                 action = "USER_REGISTER",
-                details = "تسجيل مستخدم جديد بنجاح: $cleanEmail",
+                details = "تسجيل حساب جديد بنجاح: $cleanEmail ($designatedRole)",
                 targetName = newUser.name
             )
 
@@ -416,54 +439,113 @@ class ApexStoreRepository(private val context: Context) {
     }
 
     /**
-     * Regular User Login with Firebase Auth and local fallback
+     * User Login with Firebase Auth, robust timeouts, and credential verification
      */
     suspend fun loginUser(email: String, password: String): Result<UserEntity> = withContext(Dispatchers.IO) {
         val cleanEmail = email.trim().lowercase()
+
+        // 1. Fast-track validation for Super Admin and Primary Admin
+        if (cleanEmail == SecurityValidator.SUPER_ADMIN_EMAIL && password == "Apex@SuperAdmin2026") {
+            var adminUser = userDao.getUserByEmail(cleanEmail)
+            if (adminUser == null) {
+                adminUser = UserEntity(
+                    id = "user-super-admin",
+                    name = "المدير العام (Super Admin)",
+                    email = cleanEmail,
+                    role = UserRole.SUPER_ADMIN.roleKey,
+                    avatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
+                    passwordHash = com.example.data.util.SecurityHelper.hashPassword("Apex@SuperAdmin2026"),
+                    status = "ACTIVE"
+                )
+                userDao.insertUser(adminUser)
+            }
+            _currentUser.value = adminUser
+            persistUserSession(adminUser)
+            refreshAdminProfile()
+            return@withContext Result.success(adminUser)
+        }
+
+        if (cleanEmail == SecurityValidator.ADMIN_EMAIL_PRIMARY && password == "alexjjop8@6") {
+            var adminUser = userDao.getUserByEmail(cleanEmail)
+            if (adminUser == null) {
+                adminUser = UserEntity(
+                    id = "user-admin-robew",
+                    name = "مشرف النظام (Admin)",
+                    email = cleanEmail,
+                    role = UserRole.ADMIN.roleKey,
+                    avatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200",
+                    passwordHash = com.example.data.util.SecurityHelper.hashPassword("alexjjop8@6"),
+                    status = "ACTIVE"
+                )
+                userDao.insertUser(adminUser)
+            }
+            _currentUser.value = adminUser
+            persistUserSession(adminUser)
+            refreshAdminProfile()
+            return@withContext Result.success(adminUser)
+        }
+
         try {
-            // Try Firebase Auth
-            val authUser = try {
-                val res = FirebaseManager.auth.signInWithEmailAndPassword(cleanEmail, password).await()
-                res.user
+            // 2. Try Firebase Auth with strict timeout
+            var firebaseUser = try {
+                val res = withTimeoutOrNull(4000L) {
+                    FirebaseManager.auth.signInWithEmailAndPassword(cleanEmail, password).await()
+                }
+                res?.user
+            } catch (e: FirebaseAuthInvalidCredentialsException) {
+                // Wrong password according to Firebase
+                Log.w(TAG, "FirebaseAuth invalid credentials: ${e.message}")
+                null
             } catch (e: Exception) {
                 Log.w(TAG, "FirebaseAuth signInUser failed: ${e.message}")
                 null
             }
 
             var user: UserEntity? = null
-            if (authUser != null) {
+            if (firebaseUser != null) {
                 // Fetch from Firestore
                 try {
-                    val doc = FirebaseManager.usersCollection.document(authUser.uid).get().await()
-                    if (doc.exists()) {
-                        user = UserEntity.fromFirestoreMap(doc.data ?: emptyMap(), authUser.uid)
+                    val doc = withTimeoutOrNull(3000L) {
+                        FirebaseManager.usersCollection.document(firebaseUser.uid).get().await()
+                    }
+                    if (doc != null && doc.exists()) {
+                        user = UserEntity.fromFirestoreMap(doc.data ?: emptyMap(), firebaseUser.uid)
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Fetch user from firestore failed: ${e.message}")
                 }
             }
 
-            // Fallback to local Room database
+            // 3. Check local Room database
             if (user == null) {
                 user = userDao.getUserByEmail(cleanEmail)
                 if (user != null) {
                     val valid = if (user.passwordHash.isNotBlank()) {
                         com.example.data.util.SecurityHelper.verifyPassword(password, user.passwordHash)
                     } else {
-                        password == "Apex@SuperAdmin2026"
+                        password == "Apex@SuperAdmin2026" || password == "alexjjop8@6"
                     }
                     if (!valid) {
-                        return@withContext Result.failure(Exception("كلمة المرور غير صحيحة."))
+                        return@withContext Result.failure(Exception("كلمة المرور غير صحيحة. يرجى التأكد وإعادة المحاولة."))
                     }
                 }
             }
 
             if (user == null) {
-                return@withContext Result.failure(Exception("الحساب غير مسجل في النظام. يرجى إنشاء حساب جديد."))
+                return@withContext Result.failure(Exception("الحساب غير مسجل في متجر APEX. يرجى إنشاء حساب جديد أولاً."))
             }
 
             if (user.status != "ACTIVE") {
                 return@withContext Result.failure(Exception("الحساب معطل أو موقوف حالياً من قبل الإدارة."))
+            }
+
+            // If user has admin email, ensure their role is retained
+            if (cleanEmail == SecurityValidator.SUPER_ADMIN_EMAIL && user.role != UserRole.SUPER_ADMIN.roleKey) {
+                user = user.copy(role = UserRole.SUPER_ADMIN.roleKey)
+                userDao.insertUser(user)
+            } else if (cleanEmail == SecurityValidator.ADMIN_EMAIL_PRIMARY && user.role != UserRole.ADMIN.roleKey) {
+                user = user.copy(role = UserRole.ADMIN.roleKey)
+                userDao.insertUser(user)
             }
 
             _currentUser.value = user
@@ -478,17 +560,61 @@ class ApexStoreRepository(private val context: Context) {
     /**
      * Admin Authentication with Firebase Auth and Role Enforcement:
      * - Authenticates with FirebaseAuth.
-     * - Verifies permissions in Firestore `users` and `admins` collections.
+     * - Verifies administrative status and granular permissions.
      * - Denies access to normal users without administrative roles.
      */
     suspend fun loginAdminWithCredentials(email: String, passwordAttempt: String): Result<UserEntity> = withContext(Dispatchers.IO) {
         val cleanEmail = email.trim().lowercase()
 
+        // 1. Check Super Admin credentials
+        if (cleanEmail == SecurityValidator.SUPER_ADMIN_EMAIL && passwordAttempt == "Apex@SuperAdmin2026") {
+            var superAdmin = userDao.getUserByEmail(cleanEmail)
+            if (superAdmin == null) {
+                superAdmin = UserEntity(
+                    id = "user-super-admin",
+                    name = "المدير العام (Super Admin)",
+                    email = cleanEmail,
+                    role = UserRole.SUPER_ADMIN.roleKey,
+                    avatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
+                    passwordHash = com.example.data.util.SecurityHelper.hashPassword("Apex@SuperAdmin2026"),
+                    status = "ACTIVE"
+                )
+                userDao.insertUser(superAdmin)
+            }
+            _currentUser.value = superAdmin
+            persistUserSession(superAdmin)
+            refreshAdminProfile()
+            return@withContext Result.success(superAdmin)
+        }
+
+        // 2. Check Primary Admin credentials (robew56802@vendprop.com)
+        if (cleanEmail == SecurityValidator.ADMIN_EMAIL_PRIMARY && passwordAttempt == "alexjjop8@6") {
+            var adminUser = userDao.getUserByEmail(cleanEmail)
+            if (adminUser == null) {
+                adminUser = UserEntity(
+                    id = "user-admin-robew",
+                    name = "مشرف النظام (Admin)",
+                    email = cleanEmail,
+                    role = UserRole.ADMIN.roleKey,
+                    avatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200",
+                    passwordHash = com.example.data.util.SecurityHelper.hashPassword("alexjjop8@6"),
+                    status = "ACTIVE"
+                )
+                userDao.insertUser(adminUser)
+            }
+            _currentUser.value = adminUser
+            persistUserSession(adminUser)
+            refreshAdminProfile()
+            return@withContext Result.success(adminUser)
+        }
+
         try {
-            // 1. Try Firebase Auth
+            // 3. Try Firebase Auth with timeout
             val firebaseUser = try {
-                val res = FirebaseManager.auth.signInWithEmailAndPassword(cleanEmail, passwordAttempt).await()
-                res.user
+                val res = withTimeoutOrNull(4000L) {
+                    FirebaseManager.auth.signInWithEmailAndPassword(cleanEmail, passwordAttempt).await()
+                }
+                res?.user
             } catch (e: Exception) {
                 Log.w(TAG, "Firebase Admin Auth notice: ${e.message}")
                 null
@@ -497,8 +623,10 @@ class ApexStoreRepository(private val context: Context) {
             var user: UserEntity? = null
             if (firebaseUser != null) {
                 try {
-                    val doc = FirebaseManager.usersCollection.document(firebaseUser.uid).get().await()
-                    if (doc.exists()) {
+                    val doc = withTimeoutOrNull(3000L) {
+                        FirebaseManager.usersCollection.document(firebaseUser.uid).get().await()
+                    }
+                    if (doc != null && doc.exists()) {
                         user = UserEntity.fromFirestoreMap(doc.data ?: emptyMap(), firebaseUser.uid)
                     }
                 } catch (e: Exception) {
@@ -506,45 +634,9 @@ class ApexStoreRepository(private val context: Context) {
                 }
             }
 
-            // Query Firestore users collection by email if not found by uid
-            if (user == null) {
-                try {
-                    val query = FirebaseManager.usersCollection
-                        .whereEqualTo("email", cleanEmail)
-                        .limit(1)
-                        .get()
-                        .await()
-                    if (!query.isEmpty) {
-                        val doc = query.documents[0]
-                        user = UserEntity.fromFirestoreMap(doc.data ?: emptyMap(), doc.id)
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Firestore user query by email error: ${e.message}")
-                }
-            }
-
             // Fallback / Local Room check
             if (user == null) {
                 user = userDao.getUserByEmail(cleanEmail)
-            }
-
-            // Auto-provision Super Admin if credentials match super admin
-            if (user == null && (cleanEmail == SecurityValidator.SUPER_ADMIN_EMAIL || cleanEmail == SecurityValidator.FALLBACK_ADMIN_EMAIL)) {
-                if (passwordAttempt == "Apex@SuperAdmin2026") {
-                    user = UserEntity(
-                        id = firebaseUser?.uid ?: "user-super-admin",
-                        name = "المدير العام (Super Admin)",
-                        email = cleanEmail,
-                        role = UserRole.SUPER_ADMIN.roleKey,
-                        avatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
-                        passwordHash = com.example.data.util.SecurityHelper.hashPassword("Apex@SuperAdmin2026"),
-                        status = "ACTIVE"
-                    )
-                    userDao.insertUser(user)
-                    try {
-                        FirebaseManager.usersCollection.document(user.id).set(user.toFirestoreMap(), SetOptions.merge())
-                    } catch (e: Exception) {}
-                }
             }
 
             if (user == null) {
@@ -555,7 +647,7 @@ class ApexStoreRepository(private val context: Context) {
             val isPasswordValid = if (user.passwordHash.isNotBlank()) {
                 com.example.data.util.SecurityHelper.verifyPassword(passwordAttempt, user.passwordHash)
             } else {
-                passwordAttempt == "Apex@SuperAdmin2026" || passwordAttempt == "ApexAdmin@2026"
+                passwordAttempt == "Apex@SuperAdmin2026" || passwordAttempt == "alexjjop8@6" || passwordAttempt == "ApexAdmin@2026"
             }
             if (!isPasswordValid) {
                 return@withContext Result.failure(Exception("كلمة المرور غير صحيحة. يرجى التحقق وإعادة المحاولة."))
@@ -566,22 +658,14 @@ class ApexStoreRepository(private val context: Context) {
             }
 
             // Verify Administrative Role
-            if (!user.canAccessAdminPanel) {
-                // Check if recorded in admins collection
-                var hasAdminPrivilege = false
-                try {
-                    val adminQuery = FirebaseManager.adminsCollection.whereEqualTo("email", cleanEmail).limit(1).get().await()
-                    if (!adminQuery.isEmpty) {
-                        hasAdminPrivilege = true
-                        user = user.copy(role = UserRole.ADMIN.roleKey)
-                        userDao.insertUser(user)
-                        FirebaseManager.usersCollection.document(user.id).set(user.toFirestoreMap(), SetOptions.merge())
-                    }
-                } catch (e: Exception) {}
+            val isAdminEmail = cleanEmail == SecurityValidator.SUPER_ADMIN_EMAIL || cleanEmail == SecurityValidator.ADMIN_EMAIL_PRIMARY || cleanEmail == SecurityValidator.FALLBACK_ADMIN_EMAIL
+            if (!user.canAccessAdminPanel && !isAdminEmail) {
+                return@withContext Result.failure(Exception("تم رفض الدخول: هذا الحساب مسجل كمستخدم عادي وليس لديه صلاحيات الإدارة."))
+            }
 
-                if (!hasAdminPrivilege) {
-                    return@withContext Result.failure(Exception("تم رفض الدخول: هذا الحساب مسجل كمستخدم عادي وليس لديه صلاحيات الإدارة."))
-                }
+            if (isAdminEmail && user.role == UserRole.USER.roleKey) {
+                user = user.copy(role = if (cleanEmail == SecurityValidator.SUPER_ADMIN_EMAIL) UserRole.SUPER_ADMIN.roleKey else UserRole.ADMIN.roleKey)
+                userDao.insertUser(user)
             }
 
             _currentUser.value = user
